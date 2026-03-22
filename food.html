@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS Food - Professional Delivery</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-main: #1e293b;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            margin: 0;
+            padding-bottom: 90px;
+            overflow-x: hidden;
+        }
+
+        /* --- Sidebar & Overlay --- */
+        .sidebar {
+            position: fixed; top: 0; left: -100%; width: 280px; height: 100%;
+            background-color: var(--sidebar-bg); z-index: 2500;
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+            padding: 20px; box-sizing: border-box;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column;
+        }
+        .sidebar.active { left: 0; }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; z-index: 2000; backdrop-filter: blur(3px); }
+        .overlay.active { display: block; }
+
+        .sidebar-header {
+            text-align: center; padding-bottom: 20px; border-bottom: 1.5px solid var(--gold); margin-bottom: 15px;
+        }
+        .sidebar-header img { width: 70px; height: 70px; border-radius: 50%; border: 3px solid var(--primary); background: white; margin-bottom: 10px; object-fit: cover; }
+
+        .menu-list { flex-grow: 1; }
+        .nav-item {
+            display: flex; align-items: center; gap: 15px; padding: 12px 15px;
+            text-decoration: none; color: var(--text-main); font-weight: 600;
+            border-radius: 10px; margin-bottom: 8px; transition: 0.3s;
+        }
+        .nav-item i { color: var(--primary); width: 25px; font-size: 18px; text-align: center; }
+        
+        .nav-item.logout { color: var(--danger); margin-top: 20px; border-top: 1px solid #ddd; padding-top: 20px; }
+
+        /* --- Header --- */
+        .header-top {
+            background-color: var(--primary); height: 65px;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 15px; position: sticky; top: 0; z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header-top i { font-size: 22px; color: black; cursor: pointer; }
+        .logo-text { font-weight: 800; font-size: 18px; color: var(--gold); text-shadow: 1px 1px black; }
+
+        .search-area { padding: 15px; background: white; border-radius: 0 0 20px 20px; margin-bottom: 10px; }
+        .search-box { display: flex; background: #f1f5f9; padding: 12px 18px; border-radius: 50px; border: 1.5px solid #e2e8f0; align-items: center; }
+        .search-box input { border: none; background: transparent; width: 100%; outline: none; }
+
+        .cat-scroll { display: flex; overflow-x: auto; padding: 15px; gap: 15px; scrollbar-width: none; }
+        .cat-item { text-align: center; cursor: pointer; flex-shrink: 0; }
+        .cat-item .icon-circle { width: 65px; height: 65px; border-radius: 50%; border: 2px solid var(--gold); background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .cat-item img { width: 100%; height: 100%; object-fit: cover; }
+        .cat-item span { display: block; font-size: 11px; font-weight: 800; margin-top: 8px; color: var(--text-main); }
+
+        .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
+        .food-card { background: white; border-radius: 20px; padding: 12px; text-align: center; border: 1px solid #f1f5f9; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        .food-img { width: 100% !important; height: 130px !important; border-radius: 15px; object-fit: cover; background: #f8fafc; }
+        .food-name { font-size: 13px; font-weight: 800; margin: 10px 0 3px; color: #1e293b; height: 38px; overflow: hidden; line-height: 1.2; }
+        .shop-name { font-size: 9px; color: var(--gold); font-weight: bold; margin-bottom: 8px; display: block; }
+        .food-price { color: var(--primary); font-weight: 800; font-size: 15px; margin-bottom: 10px; }
+        .add-btn { background: var(--gold); color: white; border: none; padding: 10px; border-radius: 10px; font-weight: 800; cursor: pointer; width: 100%; font-size: 11px; transition: 0.3s; }
+        .oos-tag { position: absolute; top: 10px; left: 10px; background: var(--danger); color: white; font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 50px; z-index: 10; }
+
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 75px; background: white; display: flex; justify-content: space-around; align-items: center; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); z-index: 2000; }
+        .nav-link { text-align: center; text-decoration: none; color: #94a3b8; font-weight: 800; font-size: 10px; flex: 1; position: relative; }
+        .nav-link.active { color: var(--primary); }
+        .nav-link i { font-size: 24px; display: block; margin-bottom: 4px; }
+        #cart-count { position: absolute; top: -5px; right: 25%; background: var(--danger); color: white; font-size: 10px; padding: 2px 6px; border-radius: 50%; border: 2px solid white; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="sidebar-avatar">
+            <h3 id="side-name" style="margin:0; font-size: 16px;">Verified Member</h3>
+            <p style="font-size: 10px; color: var(--gold); margin:0; font-weight: 800;">GMDS FOOD HUB</p>
+        </div>
+        <div class="menu-list">
+            <a href="index.html" class="nav-item"><i class="fas fa-home"></i> Home Dashboard</a>
+            <a href="account.html" class="nav-item"><i class="fas fa-user-edit"></i> Profile Settings</a>
+            <a href="cart.html" class="nav-item"><i class="fas fa-shopping-basket"></i> My Cart Items</a>
+            <a href="javascript:void(0)" class="nav-item logout" onclick="logout()" style="color:var(--danger);">
+                <i class="fas fa-right-from-bracket"></i> Logout Account
+            </a>
+        </div>
+    </nav>
+
+    <header class="header-top">
+        <i class="fas fa-bars-staggered" onclick="toggleMenu()"></i>
+        <div class="logo-text">GMDS FOOD HUB</div>
+        <i class="fas fa-search" onclick="focusSearch()"></i>
+    </header>
+
+    <div class="search-area">
+        <div class="search-box">
+            <i class="fas fa-search" style="color: #6b7280; margin-right: 12px;"></i>
+            <input type="text" id="food-search" placeholder="Search delicious food..." onkeyup="searchFood(this.value)">
+        </div>
+    </div>
+
+    <div class="cat-scroll">
+        <div class="cat-item" onclick="loadFood('all')">
+            <div class="icon-circle"><img src="all-items.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2737/2737034.png'"></div>
+            <span>All Items</span>
+        </div>
+        <div class="cat-item" onclick="loadFood('biryani')">
+            <div class="icon-circle"><img src="biryani.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1037/1037762.png'"></div>
+            <span>Biryani</span>
+        </div>
+        <div class="cat-item" onclick="loadFood('roll')">
+            <div class="icon-circle"><img src="roll.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3480/3480823.png'"></div>
+            <span>Rolls</span>
+        </div>
+    </div>
+
+    <div class="product-grid" id="food-container"></div>
+
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-link"><i class="fas fa-house-chimney"></i>HOME</a>
+        <a href="cart.html" class="nav-link active">
+            <i class="fas fa-basket-shopping"></i>
+            <span id="cart-count">0</span>CART
+        </a>
+        <a href="account.html" class="nav-link"><i class="fas fa-circle-user"></i>ACCOUNT</a>
+    </nav>
+
+<script>
+// Professional Firebase Configuration (Singapore Server)
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app/", 
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8"
+};
+
+if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+const db = firebase.database();
+const auth = firebase.auth();
+
+let cart = JSON.parse(localStorage.getItem('gmds_cart')) || {};
+
+function toggleMenu() {
+    document.getElementById('sidebar').classList.toggle('active');
+    document.getElementById('overlay').classList.toggle('active');
+}
+
+// Auth Session Sync
+auth.onAuthStateChanged(user => {
+    if (user) {
+        document.getElementById('side-name').innerText = user.displayName || "Verified Member";
+        if(user.photoURL) document.getElementById('sidebar-avatar').src = user.photoURL;
+        localStorage.setItem('isLoggedIn', 'true');
+    } else {
+        localStorage.setItem('isLoggedIn', 'false');
+    }
+});
+
+// Load Food with Category Filter
+function loadFood(category = 'all') {
+    const container = document.getElementById('food-container');
+    container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:30px; font-weight:800; color:var(--primary);">Loading Delicious Food...</div>`;
+
+    db.ref('inventory/products').on('value', snap => {
+        container.innerHTML = "";
+        if(!snap.exists()) {
+            container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:30px;">No food available right now.</div>`;
+            return;
+        }
+
+        snap.forEach(child => {
+            const item = child.val();
+            const id = child.key;
+            if(category !== 'all' && item.category.toLowerCase() !== category.toLowerCase()) return;
+
+            const isOut = item.stock === "out";
+
+            container.innerHTML += `
+                <div class="food-card" data-name="${item.name.toLowerCase()}">
+                    ${isOut ? '<span class="oos-tag">OUT OF STOCK</span>' : ''}
+                    <img src="${item.img || 'food.png'}" class="food-img" onerror="this.src='https://via.placeholder.com/150?text=Food'">
+                    <div class="food-name">${item.name}</div>
+                    <span class="shop-name"><i class="fas fa-store"></i> ${item.shopName || 'GMDS Hub'}</span>
+                    <div class="food-price">৳${item.price}</div>
+                    <button class="add-btn" 
+                        onclick="addToCart(this, '${id}', '${item.name}', ${item.price}, '${item.shopName}')" 
+                        ${isOut ? 'disabled style="background:#cbd5e1"' : ''}>
+                        ${isOut ? 'UNAVAILABLE' : 'ADD TO BASKET'}
+                    </button>
+                </div>`;
+        });
+    });
+}
+
+function addToCart(btn, id, name, price, shop) {
+    if(localStorage.getItem('isLoggedIn') !== 'true') {
+        alert("Action Denied! Please login to place an order.");
+        window.location.href = 'account.html';
+        return;
+    }
+
+    if(!cart[id]) { cart[id] = { name, price, shopName: shop, qty: 1 }; } 
+    else { cart[id].qty += 1; }
+    
+    localStorage.setItem('gmds_cart', JSON.stringify(cart));
+    updateCartUI();
+
+    // Button Feedback
+    const originalText = btn.innerText;
+    btn.innerText = "✓ ADDED";
+    btn.style.background = "#16a34a";
+    setTimeout(() => {
+        btn.innerText = originalText;
+        btn.style.background = "#d4af37";
+    }, 1000);
+}
+
+function updateCartUI() {
+    let count = 0;
+    Object.values(cart).forEach(i => count += i.qty);
+    const badge = document.getElementById('cart-count');
+    if(count > 0) {
+        badge.style.display = "block";
+        badge.innerText = count;
+    } else { badge.style.display = "none"; }
+}
+
+function focusSearch() { document.getElementById('food-search').focus(); }
+
+function searchFood(val) {
+    const searchVal = val.toLowerCase();
+    const cards = document.querySelectorAll('.food-card');
+    cards.forEach(card => {
+        const name = card.getAttribute('data-name');
+        card.style.display = name.includes(searchVal) ? "block" : "none";
+    });
+}
+
+function logout() {
+    if(confirm("Logout from GMDS?")) {
+        auth.signOut().then(() => {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        });
+    }
+}
+
+window.onload = () => {
+    loadFood('all');
+    updateCartUI();
+};
+</script>
+</body>
+</html>
