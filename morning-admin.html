@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS - Morning Market Seller Admin</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-dark: #1e293b;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            margin: 0;
+            color: var(--text-dark);
+            padding-bottom: 50px;
+        }
+
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .container { padding: 15px; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--white);
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            border-bottom: 3px solid var(--gold);
+        }
+        .stat-card h3 { margin: 5px 0; color: var(--primary); font-size: 16px; }
+
+        .order-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 8px solid var(--gold);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        .cut-badge {
+            background: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 10px;
+            font-weight: 800;
+            color: #475569;
+            text-transform: uppercase;
+        }
+
+        .weight-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+            background: #fffbeb;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--gold);
+        }
+        .input-field {
+            width: 100%; padding: 10px; border: 1px solid #ddd;
+            border-radius: 10px; outline: none; box-sizing: border-box;
+        }
+
+        .btn-group { display: flex; gap: 8px; margin-top: 15px; }
+        .btn {
+            flex: 1; padding: 12px; border: none; border-radius: 10px;
+            font-weight: bold; cursor: pointer; color: white; font-size: 11px;
+        }
+        .btn-confirm { background: #3b82f6; }
+        .btn-process { background: #f59e0b; }
+        .btn-delivery { background: var(--primary); }
+
+        .add-form {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+        }
+
+        #security-lock {
+            position: fixed; inset: 0; background: #fff; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="security-lock">
+        <i class="fas fa-user-shield" style="font-size: 60px; color: var(--primary); margin-bottom: 20px;"></i>
+        <h2>Access Locked</h2>
+        <p>This panel is for registered Sellers only. Please login through the Secret Gateway.</p>
+        <button onclick="window.location.href='account.html'" style="padding:12px 30px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold; margin-top:20px;">GO TO LOGIN</button>
+    </div>
+
+    <header>
+        <div>
+            <h4 style="margin:0;" id="shop-display-name">Loading Seller...</h4>
+            <small id="market-date">Daily Logistics Panel</small>
+        </div>
+        <i class="fas fa-leaf" style="font-size: 22px; color: var(--gold);"></i>
+    </header>
+
+    <div class="container" id="admin-main" style="display:none;">
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <small>Pending</small>
+                <h3 id="order-count">0</h3>
+            </div>
+            <div class="stat-card">
+                <small>Revenue</small>
+                <h3 id="today-revenue">৳0</h3>
+            </div>
+            <div class="stat-card">
+                <small>GPS</small>
+                <h3 style="font-size:12px; color:blue;">LIVE</h3>
+            </div>
+        </div>
+
+        <h4 style="color: var(--primary);"><i class="fas fa-clock"></i> Incoming Orders</h4>
+        <div id="morning-orders-list">
+            <p style="text-align:center; color:gray; font-size:12px;">Searching for orders...</p>
+        </div>
+
+        <div class="add-form">
+            <h4 style="margin-top:0;"><i class="fas fa-plus-circle"></i> Add Today's Fresh Item</h4>
+            <input type="text" id="new-item-name" class="input-field" style="margin-bottom:10px;" placeholder="Item Name (e.g. Local Fish)">
+            <input type="number" id="new-item-price" class="input-field" style="margin-bottom:10px;" placeholder="Wholesale Price (৳)">
+            <input type="text" id="new-item-img" class="input-field" style="margin-bottom:10px;" placeholder="Image Filename (e.g. fish.png)">
+            <button class="btn" style="background:var(--primary); width:100%; font-size:14px;" onclick="addNewMorningProduct()">POST TO MARKET</button>
+        </div>
+
+    </div>
+
+    <audio id="order-beep" src="https://www.soundjay.com/buttons/sounds/button-10.mp3" preload="auto"></audio>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8",
+    measurementId: "G-MWX8QCMNNH"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+window.onload = () => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const userPhone = localStorage.getItem('userPhone'); 
+    const adminKey = sessionStorage.getItem('adminAllowed');
+
+    if (adminKey === 'true' && isLoggedIn === 'true') {
+        db.ref('merchants/' + userPhone).once('value', snap => {
+            const merchantData = snap.val();
+            if (merchantData) {
+                document.getElementById('shop-display-name').innerText = merchantData.shopName;
+                document.getElementById('market-date').innerText = new Date().toDateString();
+                document.getElementById('security-lock').style.display = 'none';
+                document.getElementById('admin-main').style.display = 'block';
+                
+                loadMyMorningOrders(userPhone); 
+                syncSellerLocation(userPhone);
+            } else {
+                alert("Unauthorized Seller!");
+                window.location.href = "account.html";
+            }
+        });
+    } else {
+        setTimeout(() => { window.location.href = "account.html"; }, 1500);
+    }
+};
+
+function loadMyMorningOrders(merchantID) {
+    db.ref('morning_orders').orderByChild('merchantID').equalTo(merchantID).on('value', snap => {
+        const list = document.getElementById('morning-orders-list');
+        list.innerHTML = "";
+        let count = 0;
+        let revenue = 0;
+
+        snap.forEach(child => {
+            const order = child.val();
+            if(order.status !== 'Delivered') {
+                count++;
+                revenue += parseFloat(order.totalPrice || 0);
+                list.innerHTML += `
+                    <div class="order-card">
+                        <div style="display:flex; justify-content:space-between;">
+                            <b>ORDER: #${child.key.slice(-5)}</b>
+                            <span class="cut-badge">${order.cutSelection || 'Fresh'}</span>
+                        </div>
+                        <p style="margin:10px 0; font-weight:600;">Item: ${order.items}</p>
+                        <small>Initial Weight: ${order.orderedWeight} kg</small>
+                        <div class="weight-input">
+                            <small>Final Weight (kg):</small>
+                            <input type="number" step="0.01" class="input-field" style="width:80px;" id="final-${child.key}" value="${order.orderedWeight}">
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-confirm" onclick="updateStatus('${child.key}', 'Confirmed')">Confirm</button>
+                            <button class="btn btn-process" onclick="updateStatus('${child.key}', 'Processing')">Process</button>
+                            <button class="btn btn-delivery" onclick="updateStatus('${child.key}', 'Out for Delivery')">Deliver</button>
+                        </div>
+                    </div>`;
+            }
+        });
+        document.getElementById('order-count').innerText = count;
+        document.getElementById('today-revenue').innerText = "৳" + revenue;
+        if(count > 0) document.getElementById('order-beep').play();
+    });
+}
+
+function updateStatus(id, status) {
+    const finalWeight = document.getElementById('final-' + id).value;
+    db.ref('morning_orders/' + id).update({ status: status, actualWeight: finalWeight });
+    alert("Order " + status);
+}
+
+// ✅ Save Product with Professional Identity
+function addNewMorningProduct() {
+    const shopName = document.getElementById('shop-display-name').innerText; 
+    const merchantID = localStorage.getItem('userPhone');
+    
+    const name = document.getElementById('new-item-name').value;
+    const price = document.getElementById('new-item-price').value;
+    const img = document.getElementById('new-item-img').value;
+
+    if(name && price) {
+        db.ref('allMorningItems').push({
+            name: name,
+            wholesalePrice: price,
+            img: img || 'morning-placeholder.png',
+            shopName: shopName,    // ✅ Essential for Customer View
+            merchantID: merchantID, // ✅ Essential for Data Isolation
+            status: 'In Stock',
+            timestamp: new Date().getTime()
+        });
+        alert("Success! " + name + " is now live from " + shopName);
+        document.getElementById('new-item-name').value = "";
+        document.getElementById('new-item-price').value = "";
+    } else {
+        alert("Fill all fields!");
+    }
+}
+
+function syncSellerLocation(merchantID) {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            db.ref('merchant_locations/' + merchantID).update({
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude,
+                lastSeen: new Date().getTime()
+            });
+        });
+    }
+}
+</script>
+</body>
+</html>

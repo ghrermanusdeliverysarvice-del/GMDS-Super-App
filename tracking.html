@@ -1,0 +1,125 @@
+<script>
+// --- Configuration & Global Variables ---
+const urlParams = new URLSearchParams(window.location.search);
+const orderID = urlParams.get('id');
+let map, customerMarker, riderMarker;
+let isMapInitialized = false;
+
+//  Step 1: Initialize Tracking & High Accuracy GPS
+function initTracking() {
+    if (!orderID) {
+        alert("Invalid Access! Order ID is missing.");
+        window.location.href = 'index.html';
+        return;
+    }
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                renderMapAndSync(lat, lon);
+            },
+            (error) => {
+                console.warn("GPS Access Denied, using fallback location.");
+                const fallbackLat = localStorage.getItem('userLat') || 23.5;
+                const fallbackLon = localStorage.getItem('userLon') || 88.5;
+                renderMapAndSync(fallbackLat, fallbackLon);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    } else {
+        const fallbackLat = localStorage.getItem('userLat') || 23.5;
+        const fallbackLon = localStorage.getItem('userLon') || 88.5;
+        renderMapAndSync(fallbackLat, fallbackLon);
+    }
+}
+
+//  Step 2: Render Leaflet Map
+function renderMapAndSync(lat, lon) {
+    if (isMapInitialized) return;
+
+    // Initialize Map
+    map = L.map('map', { zoomControl: false }).setView([lat, lon], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: ' GMDS Logistics'
+    }).addTo(map);
+
+    // Set Customer Home Icon
+    const homeIcon = L.icon({ 
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/619/619153.png', 
+        iconSize: [35, 35],
+        iconAnchor: [17, 35]
+    });
+    customerMarker = L.marker([lat, lon], { icon: homeIcon }).addTo(map).bindPopup("Your Delivery Location").openPopup();
+
+    // Set Rider Bike Icon (Hidden until assigned)
+    const bikeIcon = L.icon({ 
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png', 
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+    });
+    riderMarker = L.marker([lat, lon], { icon: bikeIcon, opacity: 0 }).addTo(map);
+
+    isMapInitialized = true;
+    syncOrderData();
+}
+
+//  Step 3: Real-time Data Sync from Firebase
+function syncOrderData() {
+    db.ref('all_orders/' + orderID).on('value', (snap) => {
+        const order = snap.val();
+        if (!order) {
+            console.error("Order not found in database.");
+            return;
+        }
+
+        updateTimelineUI(order.status);
+        
+        // Update Order ID & Rider Name
+        document.getElementById('order-id-display').innerText = "Order ID: #" + orderID.slice(-6).toUpperCase();
+        document.getElementById('rider-name').innerText = order.riderName || "Searching for Rider...";
+
+        //  Live Rider Tracking
+        if (order.riderPhone) {
+            document.getElementById('rider-phone-display').innerText = "Contact: " + order.riderPhone;
+            document.getElementById('call-rider').href = "tel:" + order.riderPhone;
+
+            db.ref('rider_locations/' + order.riderPhone).on('value', (locSnap) => {
+                const loc = locSnap.val();
+                if (loc && riderMarker) {
+                    const riderPos = [loc.lat, loc.lon];
+                    riderMarker.setLatLng(riderPos).setOpacity(1); // Show rider
+                    
+                    // Auto-focus map if Rider moves
+                    if (order.status === 'Out for Delivery') {
+                        map.panTo(riderPos);
+                        document.getElementById('eta-display').innerText = "Rider is heading to your location!";
+                    }
+                }
+            });
+        }
+
+        // Show Rating Modal when Delivered
+        if (order.status === "Delivered") {
+            setTimeout(() => {
+                document.getElementById('rating-modal').style.display = 'flex';
+            }, 1000);
+        }
+    });
+}
+
+//  Step 4: UI Timeline Update
+function updateTimelineUI(status) {
+    const steps = ['Pending', 'Accepted', 'Cooking', 'Packing', 'Out for Delivery'];
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+
+    if (status === 'Pending') document.getElementById('step-pending').classList.add('active');
+    if (status === 'Accepted') document.getElementById('step-accepted').classList.add('active');
+    if (status === 'Cooking' || status === 'Packing') document.getElementById('step-processing').classList.add('active');
+    if (status === 'Out for Delivery') document.getElementById('step-delivery').classList.add('active');
+}
+
+// Initialize on Load
+window.onload = initTracking;
+</script>

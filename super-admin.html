@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS - Master Command Center</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-main: #000000;
+            --text-gray: #6b7280;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            color: var(--text-main);
+            margin: 0;
+            padding-bottom: 80px;
+        }
+
+        /* --- Security Lock --- */
+        #master-lock {
+            position: fixed; inset: 0; background: var(--primary);
+            z-index: 9999; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 30px;
+        }
+
+        /* --- Header --- */
+        .admin-header {
+            background: var(--primary);
+            padding: 20px;
+            color: var(--gold);
+            text-align: center;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        /* --- Stats Dashboard --- */
+        .stats-container {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 10px; padding: 15px;
+        }
+        .stat-card {
+            background: white; padding: 15px; border-radius: 15px;
+            border-left: 5px solid var(--gold); box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        .stat-card b { font-size: 18px; color: var(--primary); display: block; }
+        .stat-card span { font-size: 10px; color: gray; font-weight: bold; }
+
+        /* --- Professional Tabs --- */
+        .tab-wrapper {
+            display: flex; overflow-x: auto; background: white;
+            padding: 10px; gap: 10px; position: sticky; top: 0; z-index: 100;
+        }
+        .tab-item {
+            background: var(--sidebar-bg); border: 1px solid var(--gold);
+            padding: 8px 18px; border-radius: 50px; white-space: nowrap;
+            font-size: 12px; font-weight: 700; cursor: pointer;
+        }
+        .tab-item.active { background: var(--primary); color: white; border: none; }
+
+        .content-section { display: none; padding: 15px; }
+        .content-section.active { display: block; }
+
+        /* --- Form Elements --- */
+        .admin-card {
+            background: white; padding: 20px; border-radius: 20px;
+            margin-bottom: 15px; border: 1px solid #eee;
+        }
+        .admin-card h4 { margin: 0 0 15px; border-bottom: 2px solid var(--app-bg); padding-bottom: 5px; font-size: 14px; }
+        
+        .input-box {
+            width: 100%; padding: 12px; border-radius: 10px;
+            border: 1.5px solid #eee; margin-bottom: 10px;
+            box-sizing: border-box; font-family: inherit;
+        }
+        .btn-master {
+            width: 100%; padding: 12px; border-radius: 10px;
+            border: none; font-weight: 800; cursor: pointer; font-size: 13px;
+        }
+        .btn-save { background: var(--primary); color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+
+        /* --- List Display --- */
+        .live-item {
+            background: white; padding: 12px; border-radius: 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 8px; border: 1px solid #f1f5f9; font-size: 13px;
+        }
+        .badge { font-size: 9px; padding: 3px 8px; border-radius: 50px; font-weight: 800; }
+        .badge-pending { background: #fef3c7; color: #d97706; }
+    </style>
+</head>
+<body>
+
+    <div id="master-lock">
+        <img src="https://cdn-icons-png.flaticon.com/512/1144/1144760.png" width="80" style="margin-bottom: 20px;">
+        <h2 style="color: var(--gold); text-shadow: 1px 1px black;">GMDS ADMIN KEY</h2>
+        <input type="password" id="admin-pin" class="input-box" placeholder="Enter Master PIN" style="text-align: center; max-width: 250px;">
+        <button class="btn-master btn-save" onclick="unlockAdmin()" style="max-width: 250px;">ACCESS SYSTEM</button>
+    </div>
+
+    <header class="admin-header">
+        <h2>GMDS COMMAND</h2>
+        <p style="font-size: 10px; margin: 0; color: white; letter-spacing: 1px;">SUPREME CONTROL PANEL</p>
+    </header>
+
+    <div class="stats-container">
+        <div class="stat-card"><span>REVENUE</span><b id="total-revenue">₹0</b></div>
+        <div class="stat-card"><span>LIVE ORDERS</span><b id="live-order-count">0</b></div>
+    </div>
+
+    <div class="tab-wrapper">
+        <div class="tab-item active" onclick="openTab('orders', this)">ORDERS</div>
+        <div class="tab-item" onclick="openTab('verification', this)">VERIFY PARTNER</div>
+        <div class="tab-item" onclick="openTab('ads', this)">AD MANAGER</div>
+        <div class="tab-item" onclick="openTab('products', this)">INVENTORY</div>
+        <div class="tab-item" onclick="openTab('global', this)">SYSTEM SETTINGS</div>
+    </div>
+
+    <div id="orders" class="content-section active">
+        <h4><i class="fas fa-satellite-dish"></i> Active Dispatch Control</h4>
+        <div id="live-orders-container">
+            <p style="text-align:center; color:gray; font-size: 12px;">Waiting for new orders...</p>
+        </div>
+    </div>
+
+    <div id="verification" class="content-section">
+        <div class="admin-card">
+            <h4><i class="fas fa-user-check"></i> Verify & Add New Partner</h4>
+            <select id="v-type" class="input-box">
+                <option value="riders">Delivery Partner (Rider)</option>
+                <option value="hotels">Hotel/Restaurant Owner</option>
+                <option value="groceries">Grocery Shop Owner</option>
+                <option value="house_service">House Service (Mistri)</option>
+            </select>
+            <input type="text" id="v-name" class="input-box" placeholder="Full Name">
+            <input type="tel" id="v-phone" class="input-box" placeholder="Phone Number (91...)">
+            <input type="password" id="v-pass" class="input-box" placeholder="Set Login Password">
+            <button class="btn-master btn-save" onclick="verifyPartner()">APPROVE & SAVE PARTNER</button>
+        </div>
+        <div id="verified-partners-list"></div>
+    </div>
+
+    <div id="ads" class="content-section">
+        <div class="admin-card">
+            <h4><i class="fas fa-images"></i> Sliding Ads & Banners</h4>
+            <select id="ad-target" class="input-box">
+                <option value="home_slider">Main Home Slider</option>
+                <option value="food_ads">Food Page Ads</option>
+                <option value="grocery_ads">Grocery Page Ads</option>
+                <option value="popup">Main Popup Ad</option>
+            </select>
+            <input type="text" id="ad-url" class="input-box" placeholder="Paste Image Link (URL)">
+            <button class="btn-master btn-save" onclick="uploadAd()">PUBLISH AD BANNER</button>
+        </div>
+    </div>
+
+    <div id="products" class="content-section">
+        <div class="admin-card">
+            <h4><i class="fas fa-edit"></i> Global Price & Stock Control</h4>
+            <input type="text" id="p-id" class="input-box" placeholder="Product Name/ID">
+            <input type="number" id="p-price" class="input-box" placeholder="New Price (₹)">
+            <select id="p-stock" class="input-box">
+                <option value="available">In Stock</option>
+                <option value="out">Out of Stock</option>
+            </select>
+            <button class="btn-master btn-save" onclick="updateInventory()">UPDATE PRODUCT</button>
+        </div>
+    </div>
+
+    <div id="global" class="content-section">
+        <div class="admin-card">
+            <h4><i class="fas fa-cogs"></i> Operational Control</h4>
+            <input type="number" id="g-delivery" class="input-box" placeholder="Set Delivery Fee (₹)">
+            <button class="btn-master btn-save" style="margin-bottom:10px;" onclick="setGlobalFee()">UPDATE DELIVERY FEE</button>
+            <button class="btn-master btn-danger" onclick="toggleMaintenance()">TOGGLE MAINTENANCE MODE</button>
+        </div>
+    </div>
+
+<script>
+// --- Firebase Basic Config ---
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// --- Unlock Logic ---
+function unlockAdmin() {
+    const pin = document.getElementById('admin-pin').value;
+    if(pin === "76991") {
+        document.getElementById('master-lock').style.display = 'none';
+        initAdminData();
+    } else { alert("WRONG PIN!"); }
+}
+
+// --- Tab System ---
+function openTab(tabId, el) {
+    document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    el.classList.add('active');
+}
+
+// --- Verified Partner Logic ---
+function verifyPartner() {
+    const type = document.getElementById('v-type').value;
+    const phone = document.getElementById('v-phone').value;
+    const name = document.getElementById('v-name').value;
+    const pass = document.getElementById('v-pass').value;
+
+    if(!phone || !name || !pass) return alert("Fill all data!");
+
+    db.ref('partners/' + type + '/' + phone).set({
+        name: name,
+        password: pass,
+        status: "Verified",
+        timestamp: new Date().getTime()
+    }).then(() => alert("Partner Verified & Added!"));
+}
+
+// --- Live Order Watcher ---
+function initAdminData() {
+    // 🚚 Sync Orders
+    db.ref('all_orders').on('value', snap => {
+        const container = document.getElementById('live-orders-container');
+        container.innerHTML = "";
+        let revenue = 0;
+        let activeCount = 0;
+
+        snap.forEach(child => {
+            const order = child.val();
+            if(order.status !== 'Delivered' && order.status !== 'Cancelled') {
+                activeCount++;
+                container.innerHTML += `
+                    <div class="live-item">
+                        <div><b>#${child.key.slice(-5)}</b> - ${order.address}<br><small>${order.customerPhone}</small></div>
+                        <span class="badge badge-pending">${order.status}</span>
+                        <button onclick="changeStatus('${child.key}')" style="font-size:10px;">EDIT</button>
+                    </div>`;
+            }
+            if(order.status === 'Delivered') revenue += parseInt(order.grandTotal || 0);
+        });
+        document.getElementById('total-revenue').innerText = "₹" + revenue;
+        document.getElementById('live-order-count').innerText = activeCount;
+    });
+}
+
+// --- Ad Management ---
+function uploadAd() {
+    const target = document.getElementById('ad-target').value;
+    const url = document.getElementById('ad-url').value;
+    db.ref('app_settings/ads/' + target).push({ image: url }).then(() => alert("Ad Published!"));
+}
+
+// --- Global Price Update ---
+function updateInventory() {
+    const id = document.getElementById('p-id').value;
+    const price = document.getElementById('p-price').value;
+    const stock = document.getElementById('p-stock').value;
+    db.ref('inventory/products/' + id).update({ price: price, stock: stock }).then(() => alert("Price Updated Globally!"));
+}
+
+function changeStatus(id) {
+    const newStatus = prompt("Enter Status (Accepted/Cooking/Out for Delivery/Delivered):");
+    if(newStatus) db.ref('all_orders/' + id).update({ status: newStatus });
+}
+</script>
+</body>
+</html>

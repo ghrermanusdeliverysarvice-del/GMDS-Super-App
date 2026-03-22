@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS Partner - Secure Rider Panel</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-dark: #000000;
+            --text-gray: #6b7280;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            margin: 0;
+            color: var(--text-dark);
+            padding-bottom: 30px;
+        }
+
+        header {
+            background-color: var(--primary);
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .logo-text { font-weight: 800; font-size: 20px; color: var(--gold); text-shadow: 1px 1px black; }
+
+        .container { padding: 15px; }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            border-bottom: 4px solid var(--gold);
+        }
+        .stat-card h2 { margin: 5px 0; color: var(--primary); font-size: 24px; }
+
+        .status-box {
+            background: var(--sidebar-bg);
+            padding: 15px 20px;
+            border-radius: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            border: 1.5px solid var(--gold);
+        }
+
+        .order-card {
+            background: white;
+            border-radius: 25px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 8px solid var(--gold);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+        }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        .btn {
+            flex: 1; padding: 14px; border: none; border-radius: 12px;
+            font-weight: 800; cursor: pointer; color: white; font-size: 12px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-accept { background: #3b82f6; }
+        .btn-nav { background: #f59e0b; }
+        .btn-finish { background: var(--primary); }
+
+        #security-lock {
+            position: fixed; inset: 0; background: white; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; padding: 30px;
+        }
+
+        .switch { position: relative; display: inline-block; width: 55px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(27px); }
+    </style>
+</head>
+<body>
+
+    <div id="security-lock">
+        <i class="fas fa-user-shield" style="font-size: 70px; color: var(--primary); margin-bottom: 25px;"></i>
+        <h2>Access Restricted</h2>
+        <p style="color: var(--text-gray);">Only authorized GMDS Riders can access this panel. Please verify via Home Gateway.</p>
+        <button onclick="window.location.href='account.html'" style="padding:15px 45px; background:var(--primary); color:white; border:none; border-radius:15px; font-weight:bold; cursor:pointer;">GO TO LOGIN</button>
+    </div>
+
+    <header>
+        <div class="logo-text">GMDS RIDER</div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <small id="rider-name-display" style="font-weight: 800; color: black;">Verifying...</small>
+            <i class="fas fa-motorcycle" style="font-size: 24px; color: black;"></i>
+        </div>
+    </header>
+
+    <div class="container" id="rider-main-content" style="display:none;">
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <small>TOTAL EARNINGS</small>
+                <h2 id="total-earnings">₹0</h2>
+            </div>
+            <div class="stat-card">
+                <small>COMPLETED</small>
+                <h2 id="total-deliveries">0</h2>
+            </div>
+        </div>
+
+        <div class="status-box">
+            <div>
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-gray);">Duty Status</span>
+                <div id="duty-label" style="font-weight: 800; color: var(--text-gray);">OFFLINE</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="duty-switch" onchange="toggleDuty()">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <h4 style="color: var(--primary);"><i class="fas fa-map-location-dot"></i> Live Task Requests</h4>
+        <div id="order-request-list">
+            <p style="text-align: center; color: var(--text-gray); font-size: 12px; margin-top: 60px;">Go ONLINE to see orders.</p>
+        </div>
+    </div>
+
+    <audio id="order-tune" src="https://www.soundjay.com/buttons/sounds/button-10.mp3" preload="auto"></audio>
+
+<script>
+// --- Firebase Config ---
+const firebaseConfig = {
+  apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+  authDomain: "gmds-super-app.firebaseapp.com",
+  databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "gmds-super-app",
+  storageBucket: "gmds-super-app.appspot.com",
+  messagingSenderId: "872768042776",
+  appId: "1:872768042776:web:5c64e3a6ce4da6229faa8",
+  measurementId: "G-MWX8QCMNNH"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// --- 🔐 Identity & Data Isolation Check ---
+window.onload = () => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const userPhone = localStorage.getItem('userPhone'); 
+    const adminKey = sessionStorage.getItem('adminAllowed');
+
+    if (adminKey === 'true' && isLoggedIn === 'true') {
+        db.ref('merchants/' + userPhone).once('value', snap => {
+            const riderData = snap.val();
+            // Check if Main Admin registered this phone as a 'Rider'
+            if (riderData && (riderData.type === "Rider" || riderData.role === "Rider")) {
+                document.getElementById('rider-name-display').innerText = riderData.shopName;
+                document.getElementById('security-lock').style.display = 'none';
+                document.getElementById('rider-main-content').style.display = 'block';
+                
+                loadMyPersonalDashboard(userPhone); 
+                startLocationTracking(userPhone);
+            } else {
+                alert("Access Denied! Your number is not registered as a Rider in GMDS Admin.");
+                window.location.href = "account.html";
+            }
+        });
+    } else {
+        window.location.href = "account.html";
+    }
+};
+
+// --- 📊 Isolated Personal Dashboard ---
+function loadMyPersonalDashboard(riderID) {
+    // 1. Load this Rider's Earnings from their specific node
+    db.ref('rider_stats/' + riderID).on('value', snap => {
+        const stats = snap.val() || { earnings: 0, completed: 0 };
+        document.getElementById('total-earnings').innerText = "₹" + stats.earnings;
+        document.getElementById('total-deliveries').innerText = stats.completed;
+    });
+
+    // 2. Filter All Orders to show only New or My Accepted ones
+    db.ref('all_orders').on('value', snap => {
+        const list = document.getElementById('order-request-list');
+        list.innerHTML = "";
+        let found = false;
+
+        snap.forEach(child => {
+            const order = child.val();
+            if(order.status === "Pending" || order.riderPhone === riderID) {
+                found = true;
+                list.innerHTML += `
+                    <div class="order-card">
+                        <span style="font-weight:800; color:var(--primary)">TASK #${child.key.slice(-6)}</span>
+                        <div style="margin:10px 0; font-size:13px;">
+                            <i class="fas fa-store"></i> <b>Pickup:</b> Restaurant/Shop<br>
+                            <i class="fas fa-location-dot"></i> <b>Drop:</b> ${order.address}<br>
+                            <i class="fas fa-wallet"></i> <b>Earning:</b> ₹20
+                        </div>
+                        <div class="btn-group">
+                            ${order.status === 'Pending' ? 
+                            `<button class="btn btn-accept" onclick="acceptTask('${child.key}')">ACCEPT TASK</button>` :
+                            `<button class="btn btn-nav" onclick="openMap('${order.location}')">NAVIGATE</button>
+                             <button class="btn btn-finish" onclick="completeDelivery('${child.key}')">MARK DELIVERED</button>`
+                            }
+                        </div>
+                    </div>`;
+            }
+        });
+        if(found && document.getElementById('duty-switch').checked) document.getElementById('order-tune').play();
+    });
+}
+
+function toggleDuty() {
+    const isOnline = document.getElementById('duty-switch').checked;
+    const label = document.getElementById('duty-label');
+    label.innerText = isOnline ? "ONLINE" : "OFFLINE";
+    label.style.color = isOnline ? "var(--primary)" : "var(--text-gray)";
+    db.ref('active_riders/' + localStorage.getItem('userPhone')).update({ online: isOnline });
+}
+
+function acceptTask(id) {
+    const riderID = localStorage.getItem('userPhone');
+    const riderName = document.getElementById('rider-name-display').innerText;
+    db.ref('all_orders/' + id).update({
+        status: "Accepted",
+        riderPhone: riderID,
+        riderName: riderName
+    });
+}
+
+function completeDelivery(id) {
+    if(confirm("Are you sure you delivered the order? (OTP Verified)")) {
+        db.ref('all_orders/' + id).update({ status: "Delivered" });
+        alert("Delivery Confirmed!");
+    }
+}
+
+function startLocationTracking(riderID) {
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(pos => {
+            if(document.getElementById('duty-switch').checked) {
+                db.ref('rider_locations/' + riderID).update({
+                    lat: pos.coords.latitude,
+                    lon: pos.coords.longitude,
+                    lastSeen: new Date().getTime()
+                });
+            }
+        });
+    }
+}
+
+function openMap(coords) {
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${coords}`, '_blank');
+}
+</script>
+</body>
+</html>

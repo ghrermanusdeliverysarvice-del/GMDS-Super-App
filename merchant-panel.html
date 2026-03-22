@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS - Hotel Merchant Panel</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-dark: #1e293b;
+            --white: #ffffff;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            margin: 0;
+            color: var(--text-dark);
+            padding-bottom: 50px;
+        }
+
+        /* --- Header --- */
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .container { padding: 15px; }
+
+        /* --- Dashboard Stats --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: var(--white);
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            border-bottom: 4px solid var(--gold);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+        }
+        .stat-card h2 { margin: 5px 0; color: var(--primary); }
+
+        /* --- Order Card --- */
+        .order-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 8px solid var(--gold);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn {
+            flex: 1; padding: 12px; border: none; border-radius: 10px;
+            font-weight: bold; cursor: pointer; color: white; font-size: 12px;
+        }
+        .btn-accept { background: #0ea5e9; }
+        .btn-cook { background: #f59e0b; }
+        .btn-ready { background: var(--primary); }
+
+        /* --- Form Section --- */
+        .add-form {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+        }
+        .input-box {
+            width: 100%; padding: 12px; margin-bottom: 12px;
+            border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; outline: none;
+        }
+
+        /* --- Inventory List --- */
+        .inventory-section {
+            background: var(--sidebar-bg); padding: 20px;
+            border-radius: 20px; margin-top: 30px;
+        }
+        .food-item-edit {
+            background: white; padding: 15px; border-radius: 12px;
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+        }
+
+        /* --- Security Overlay --- */
+        #security-lock {
+            position: fixed; inset: 0; background: white; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="security-lock">
+        <i class="fas fa-user-shield" style="font-size: 60px; color: var(--danger); margin-bottom: 20px;"></i>
+        <h2>Verification Required</h2>
+        <p>Access restricted to registered GMDS Hotel Partners. Please login through the home gateway.</p>
+        <button onclick="window.location.href='account.html'" style="padding:15px 40px; background:var(--primary); color:white; border:none; border-radius:15px; font-weight:bold; cursor:pointer; margin-top:20px;">GO TO LOGIN</button>
+    </div>
+
+    <header>
+        <div>
+            <h4 style="margin:0;" id="hotel-display-name">Loading Hotel...</h4>
+            <small id="merchant-id-tag">Merchant ID: Verifying...</small>
+        </div>
+        <i class="fas fa-bell" id="order-bell"></i>
+    </header>
+
+    <div class="container" id="admin-main" style="display:none;">
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <small>Today's Sales</small>
+                <h2 id="revenue-count">0</h2>
+            </div>
+            <div class="stat-card">
+                <small>Active Orders</small>
+                <h2 id="pending-count">0</h2>
+            </div>
+        </div>
+
+        <h4 style="color: var(--primary);"><i class="fas fa-clock"></i> New Incoming Orders</h4>
+        <div id="active-orders-container">
+            <p style="text-align:center; color:gray; font-size:12px;">Waiting for fresh orders...</p>
+        </div>
+
+        <div class="add-form">
+            <h4 style="margin-top:0;"><i class="fas fa-plus-circle"></i> Add New Menu Item</h4>
+            <input type="text" id="new-food-name" class="input-box" placeholder="Food Name (e.g. Chicken Roast)">
+            <input type="number" id="new-food-price" class="input-box" placeholder="Price ()">
+            <input type="text" id="new-food-img" class="input-box" placeholder="Image Filename (e.g. roast.png)">
+            <button class="btn" style="background:var(--primary); width:100%; font-size:14px;" onclick="addNewProduct()">SAVE PRODUCT</button>
+        </div>
+
+        <div class="inventory-section">
+            <h4 style="margin-top:0;"><i class="fas fa-boxes"></i> Menu Inventory Control</h4>
+            <div id="inventory-list">
+                </div>
+        </div>
+
+    </div>
+
+    <audio id="order-sound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3" preload="auto"></audio>
+
+<script>
+// --- Firebase Config ---
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8",
+    measurementId: "G-MWX8QCMNNH"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// --- Security & Identification Patch ---
+window.onload = () => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const userPhone = localStorage.getItem('userPhone'); 
+    const adminKey = sessionStorage.getItem('adminAllowed');
+
+    if (adminKey === 'true' && isLoggedIn === 'true') {
+        // . Verify if the user is a registered merchant
+        db.ref('merchants/' + userPhone).once('value', snap => {
+            const merchantData = snap.val();
+            if (merchantData) {
+                // . UI Updates with Shop Name
+                document.getElementById('hotel-display-name').innerText = merchantData.shopName;
+                document.getElementById('merchant-id-tag').innerText = "ID: " + userPhone;
+                
+                document.getElementById('security-lock').style.display = 'none';
+                document.getElementById('admin-main').style.display = 'block';
+                
+                // . Start Data Sync
+                loadMyOrders(userPhone); 
+                loadMyInventory(userPhone);
+                syncLocation(userPhone);
+            } else {
+                alert("Unauthorized! This phone number is not a registered merchant.");
+                window.location.href = "account.html";
+            }
+        });
+    } else {
+        setTimeout(() => { window.location.href = "account.html"; }, 1500);
+    }
+};
+
+// --- Multi-Admin Order Filtering ---
+function loadMyOrders(merchantID) {
+    db.ref('food_orders')
+      .orderByChild('merchantID')
+      .equalTo(merchantID) // Isolation: Only shows this hotel's orders
+      .on('value', snap => {
+        const container = document.getElementById('active-orders-container');
+        container.innerHTML = "";
+        let count = 0;
+        let revenue = 0;
+
+        snap.forEach(child => {
+            const order = child.val();
+            if(order.status !== 'Delivered') {
+                count++;
+                revenue += parseFloat(order.totalPrice || 0);
+                container.innerHTML += `
+                    <div class="order-card">
+                        <b>ORDER ID: #${child.key.slice(-5)}</b><br>
+                        <small>Customer: ${order.customerPhone}</small>
+                        <p style="margin:10px 0; font-weight:600;">${order.items}</p>
+                        <div class="btn-group">
+                            <button class="btn btn-accept" onclick="updateStatus('${child.key}', 'Accepted')">Accept</button>
+                            <button class="btn btn-cook" onclick="updateStatus('${child.key}', 'Cooking')">Cooking</button>
+                            <button class="btn btn-ready" onclick="updateStatus('${child.key}', 'Ready')">Ready</button>
+                        </div>
+                    </div>`;
+            }
+        });
+        document.getElementById('pending-count').innerText = count;
+        document.getElementById('revenue-count').innerText = "" + revenue;
+        if(count > 0) document.getElementById('order-sound').play();
+    });
+}
+
+function updateStatus(id, status) {
+    db.ref('food_orders/' + id).update({ status: status });
+    alert("Status Updated: " + status);
+}
+
+// --- Professional Add Product Logic ---
+function addNewProduct() {
+    const shopName = document.getElementById('hotel-display-name').innerText; 
+    const merchantID = localStorage.getItem('userPhone');
+    
+    const name = document.getElementById('new-food-name').value;
+    const price = document.getElementById('new-food-price').value;
+    const img = document.getElementById('new-food-img').value;
+
+    if(name && price) {
+        db.ref('allFoodItems').push({
+            name: name,
+            price: price,
+            img: img || 'food-placeholder.png',
+            shopName: shopName,    //  Important for Customer Display
+            merchantID: merchantID, //  Important for Data Isolation
+            status: 'In Stock',
+            category: 'Food',
+            timestamp: new Date().getTime()
+        });
+        alert("Success! " + name + " added from " + shopName);
+        document.getElementById('new-food-name').value = "";
+        document.getElementById('new-food-price').value = "";
+    } else {
+        alert("Please fill name and price!");
+    }
+}
+
+// --- Inventory Control ---
+function loadMyInventory(merchantID) {
+    db.ref('allFoodItems').orderByChild('merchantID').equalTo(merchantID).on('value', snap => {
+        const list = document.getElementById('inventory-list');
+        list.innerHTML = "";
+        snap.forEach(child => {
+            const item = child.val();
+            list.innerHTML += `
+                <div class="food-item-edit">
+                    <span><b>${item.name}</b> (${item.price})</span>
+                    <i class="fas ${item.status === 'In Stock' ? 'fa-toggle-on' : 'fa-toggle-off'}" 
+                       style="color:${item.status === 'In Stock' ? 'var(--primary)' : 'gray'}; font-size:24px; cursor:pointer;"
+                       onclick="toggleStock('${child.key}', '${item.status}')"></i>
+                </div>`;
+        });
+    });
+}
+
+function toggleStock(id, current) {
+    const next = current === 'In Stock' ? 'Out of Stock' : 'In Stock';
+    db.ref('allFoodItems/' + id).update({ status: next });
+}
+
+// --- GPS Logistics Sync ---
+function syncLocation(merchantID) {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            db.ref('hotel_locations/' + merchantID).update({
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude,
+                lastSeen: new Date().getTime()
+            });
+        });
+    }
+}
+</script>
+</body>
+</html>

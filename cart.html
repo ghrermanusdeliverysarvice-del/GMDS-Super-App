@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS - Secure Checkout</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --app-bg: #dcfce7;  
+            --text-dark: #1e293b;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            margin: 0;
+            padding-bottom: 120px;
+            color: var(--text-dark);
+        }
+
+        /* --- Header --- */
+        .header-top {
+            background-color: var(--primary);
+            height: 65px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .logo-text { font-weight: 800; font-size: 20px; color: var(--gold); text-shadow: 1px 1px black; }
+
+        .container { padding: 15px; }
+
+        .section-title { font-size: 14px; font-weight: 800; margin: 15px 0 10px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+        /* --- Billing Card --- */
+        .card {
+            background: white; border-radius: 20px; padding: 18px;
+            margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+            border: 1px solid #eee;
+        }
+        .bill-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; font-weight: 500; }
+        .total-row { 
+            display: flex; justify-content: space-between; margin-top: 12px; 
+            padding-top: 12px; border-top: 2px dashed #eee; 
+            font-size: 18px; font-weight: 800; color: var(--text-dark);
+        }
+
+        /* --- Location Section --- */
+        .loc-btn {
+            width: 100%; padding: 14px; border: none; border-radius: 15px;
+            background: var(--primary); color: white; font-weight: 800; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px;
+        }
+        .input-box {
+            width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid #eee;
+            box-sizing: border-box; outline: none; font-family: inherit; margin-bottom: 10px; background: #f8fafc;
+        }
+
+        /* --- Payment Options --- */
+        .pay-option {
+            display: flex; align-items: center; gap: 12px; padding: 15px;
+            background: white; border: 2px solid #eee; border-radius: 15px;
+            margin-bottom: 10px; cursor: pointer; transition: 0.3s;
+        }
+        .pay-option.active { border-color: var(--primary); background: #f0fdf4; }
+        .pay-option i { font-size: 20px; color: var(--primary); }
+
+        /* --- QR Code Display --- */
+        #qr-container {
+            display: none; text-align: center; background: white; padding: 20px;
+            border-radius: 20px; border: 2px solid var(--gold); margin: 10px 0;
+            animation: fadeIn 0.5s;
+        }
+        #qr-image { width: 180px; height: 180px; border-radius: 10px; border: 1px solid #eee; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- Footer Button --- */
+        .place-order-btn {
+            position: fixed; bottom: 20px; left: 15px; right: 15px;
+            background: var(--primary); color: white; padding: 18px;
+            border: none; border-radius: 20px; font-weight: 800; font-size: 16px;
+            box-shadow: 0 10px 25px rgba(22, 163, 74, 0.3); cursor: pointer; z-index: 2000;
+        }
+
+        #truck-anim {
+            display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.95);
+            z-index: 9999; flex-direction: column; align-items: center; justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="truck-anim">
+        <i class="fas fa-truck-fast fa-3x" style="color: var(--primary); animation: move 2s infinite linear;"></i>
+        <h3 style="margin-top: 15px;">Placing Order...</h3>
+    </div>
+
+    <header class="header-top">
+        <div class="logo-text">SECURE CHECKOUT</div>
+    </header>
+
+    <div class="container">
+        <div class="section-title"><i class="fas fa-file-invoice-dollar"></i> BILLING DETAILS</div>
+        <div class="card">
+            <div class="bill-row"><span>Items Total:</span><span id="subtotal">₹0</span></div>
+            <div class="bill-row"><span>Delivery Charge:</span><span id="delivery-fee">₹0</span></div>
+            <div class="total-row"><span>Total Payable:</span><span id="grand-total">₹0</span></div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-map-marker-alt"></i> DELIVERY ADDRESS</div>
+        <div class="card">
+            <button class="loc-btn" onclick="fetchGPS()">
+                <i class="fas fa-crosshairs"></i> GET MY LIVE LOCATION
+            </button>
+            <p id="gps-status" style="font-size: 11px; text-align: center; color: var(--primary); font-weight: bold; margin-bottom: 10px;"></p>
+            <input type="text" id="manual-addr" class="input-box" placeholder="House No / Landmark / Village Name">
+        </div>
+
+        <div class="section-title"><i class="fas fa-credit-card"></i> PAYMENT METHOD</div>
+        <div class="pay-option active" id="cod-box" onclick="selectPay('COD')">
+            <i class="fas fa-money-bill-wave"></i>
+            <div><b>Cash on Delivery</b><br><small>Pay when you get your order</small></div>
+        </div>
+        <div class="pay-option" id="online-box" onclick="selectPay('ONLINE')">
+            <i class="fas fa-qrcode"></i>
+            <div><b>Online Payment (UPI)</b><br><small>Scan & Pay instantly</small></div>
+        </div>
+
+        <div id="qr-container">
+            <p style="font-size: 12px; font-weight: bold; color: var(--primary);">SCAN & PAY NOW</p>
+            <img src="qr-code.png" id="qr-image" onerror="this.src='https://via.placeholder.com/200?text=QR+Coming+Soon'">
+            <p style="font-size: 10px; color: red; margin-top: 5px;">*Please pay before placing the order</p>
+        </div>
+    </div>
+
+    <button class="place-order-btn" onclick="confirmOrder()">PLACE ORDER NOW (₹<span id="btn-price">0</span>)</button>
+
+<script>
+// --- Firebase Config ---
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let cart = JSON.parse(localStorage.getItem('gmds_cart')) || {};
+let method = "COD";
+let coords = "Not Shared";
+
+function calculateBill() {
+    let sub = 0;
+    Object.values(cart).forEach(item => sub += (item.price * item.qty));
+    
+    // ডেলিভারি চার্জ লজিক (৫০০ টাকার উপরে ফ্রি, নিচে ২০ টাকা)
+    let del = sub > 500 ? 0 : 20;
+    let total = sub + del;
+
+    document.getElementById('subtotal').innerText = "₹" + sub;
+    document.getElementById('delivery-fee').innerText = "₹" + del;
+    document.getElementById('grand-total').innerText = "₹" + total;
+    document.getElementById('btn-price').innerText = total;
+}
+
+function fetchGPS() {
+    document.getElementById('gps-status').innerText = "🛰️ Accessing Satellites...";
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            coords = `${pos.coords.latitude},${pos.coords.longitude}`;
+            document.getElementById('gps-status').innerText = "✅ Live Location Linked Successfully!";
+        }, () => {
+            alert("Please allow GPS access for delivery.");
+        });
+    }
+}
+
+function selectPay(p) {
+    method = p;
+    document.getElementById('cod-box').classList.toggle('active', p === 'COD');
+    document.getElementById('online-box').classList.toggle('active', p === 'ONLINE');
+    document.getElementById('qr-container').style.display = p === 'ONLINE' ? 'block' : 'none';
+}
+
+function confirmOrder() {
+    const phone = localStorage.getItem('userPhone');
+    const addr = document.getElementById('manual-addr').value;
+
+    if(!phone) return alert("Please login first!");
+    if(!addr) return alert("Please enter your address!");
+    if(Object.keys(cart).length === 0) return alert("Your cart is empty!");
+
+    document.getElementById('truck-anim').style.display = 'flex';
+
+    const finalData = {
+        customerPhone: phone,
+        items: cart,
+        address: addr,
+        gps: coords,
+        payment: method,
+        status: "Pending",
+        grandTotal: document.getElementById('grand-total').innerText,
+        timestamp: new Date().toLocaleString()
+    };
+
+    db.ref('all_orders').push(finalData).then(() => {
+        setTimeout(() => {
+            alert("Ting! Order Successful.");
+            localStorage.removeItem('gmds_cart');
+            window.location.href = 'orders.html';
+        }, 2000);
+    });
+}
+
+window.onload = calculateBill;
+</script>
+
+<style>
+    @keyframes move { 0% { transform: translateX(-50px); } 100% { transform: translateX(50px); } }
+</style>
+</body>
+</html>

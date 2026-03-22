@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS - House Service Partner Panel</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-dark: #1e293b;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            margin: 0;
+            color: var(--text-dark);
+            padding-bottom: 30px;
+        }
+
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .container { padding: 15px; }
+
+        .status-bar {
+            background: white; padding: 12px 15px; border-radius: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; border: 1px solid #ddd;
+        }
+        .online-dot { height: 10px; width: 10px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+        #map { height: 220px; width: 100%; border-radius: 20px; margin-bottom: 25px; border: 2.5px solid var(--gold); z-index: 1; }
+
+        .request-card {
+            background: var(--white); border-radius: 25px; padding: 20px; margin-bottom: 20px;
+            border-left: 8px solid var(--gold); box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        .service-tag { background: #dcfce7; color: var(--primary); padding: 5px 12px; border-radius: 50px; font-weight: 800; font-size: 10px; text-transform: uppercase; }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .btn {
+            flex: 1; padding: 12px; border: none; border-radius: 12px;
+            font-weight: bold; cursor: pointer; color: white; font-size: 12px;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .btn-accept { background: #3b82f6; }
+        .btn-nav { background: #f59e0b; }
+        .btn-finish { background: var(--primary); }
+
+        .add-form {
+            background: white; padding: 20px; border-radius: 25px;
+            margin-top: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+        }
+        .input-box {
+            width: 100%; padding: 12px; margin-bottom: 12px;
+            border-radius: 12px; border: 1px solid #ddd; box-sizing: border-box; outline: none;
+        }
+
+        #lock-screen {
+            position: fixed; inset: 0; background: #fff; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; padding: 30px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="lock-screen">
+        <i class="fas fa-user-shield" style="font-size: 60px; color: var(--primary); margin-bottom: 20px;"></i>
+        <h2>Access Restricted</h2>
+        <p>Please login with your partner account through the Secret Gateway.</p>
+        <button onclick="window.location.href='account.html'" style="padding:15px 40px; background:var(--primary); color:white; border:none; border-radius:15px; font-weight: bold; cursor: pointer; margin-top: 20px;">LOGIN TO ACCOUNT</button>
+    </div>
+
+    <header>
+        <div>
+            <h4 style="margin:0;" id="merchant-display-name">Loading Partner...</h4>
+            <small id="partner-id-display">Service Dashboard</small>
+        </div>
+        <i class="fas fa-tools" style="font-size: 22px;"></i>
+    </header>
+
+    <div class="container" id="admin-main" style="display:none;">
+        
+        <div class="status-bar">
+            <span>Status: <b id="work-status" style="color: var(--primary);">Duty On</b></span>
+            <span><span class="online-dot"></span> Online</span>
+        </div>
+
+        <h4 style="margin-top:0;"><i class="fas fa-map-marked-alt"></i> Navigation Assistant</h4>
+        <div id="map"></div>
+
+        <h4 style="color: var(--primary); margin-bottom: 15px;"><i class="fas fa-bell"></i> New Job Requests</h4>
+        <div id="request-container">
+            <p style="text-align: center; color: gray; font-size: 12px;">Waiting for new service calls...</p>
+        </div>
+
+        <div class="add-form">
+            <h4 style="margin-top:0;"><i class="fas fa-plus-circle"></i> Add New Service/Package</h4>
+            <input type="text" id="new-food-name" class="input-box" placeholder="Service Name (e.g. AC Servicing)">
+            <input type="number" id="new-food-price" class="input-box" placeholder="Base Price (৳)">
+            <input type="text" id="new-food-img" class="input-box" placeholder="Image Name (e.g. ac.png)">
+            <button class="btn" style="background:var(--primary); width:100%; font-size:14px;" onclick="addNewProduct()">SAVE SERVICE</button>
+        </div>
+
+    </div>
+
+    <audio id="order-beep" src="https://www.soundjay.com/buttons/sounds/button-10.mp3" preload="auto"></audio>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8",
+    measurementId: "G-MWX8QCMNNH"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let map, workerMarker;
+
+window.onload = () => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const userPhone = localStorage.getItem('userPhone'); 
+    const adminKey = sessionStorage.getItem('adminAllowed');
+
+    if (adminKey === 'true' && isLoggedIn === 'true') {
+        db.ref('merchants/' + userPhone).once('value', snap => {
+            const merchantData = snap.val();
+            if (merchantData) {
+                document.getElementById('merchant-display-name').innerText = merchantData.shopName;
+                document.getElementById('partner-id-display').innerText = "ID: " + userPhone;
+                document.getElementById('lock-screen').style.display = 'none';
+                document.getElementById('admin-main').style.display = 'block';
+                
+                initMap(userPhone); 
+                loadMyOrders(userPhone); 
+            } else {
+                alert("You are not a registered House Service partner!");
+                window.location.href = "account.html";
+            }
+        });
+    } else {
+        setTimeout(() => { window.location.href = "account.html"; }, 2000);
+    }
+};
+
+function loadMyOrders(workerID) {
+    db.ref('house_service_bookings').orderByChild('merchantID').equalTo(workerID).on('value', snap => {
+        const container = document.getElementById('request-container');
+        container.innerHTML = "";
+        let hasNew = false;
+
+        snap.forEach(child => {
+            const req = child.val();
+            if(req.status !== 'Completed' && req.status !== 'Rejected') {
+                hasNew = true;
+                container.innerHTML += `
+                    <div class="request-card">
+                        <span class="service-tag">${req.service}</span>
+                        <div style="margin: 12px 0; font-size: 14px;">
+                            <b>Customer:</b> ${req.customerPhone}<br>
+                            <b>Time:</b> ${req.time}
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-accept" onclick="updateStatus('${child.key}', 'Accepted')">Accept</button>
+                            <button class="btn btn-nav" onclick="navigateToCustomer('${req.location}')">Navigate</button>
+                            <button class="btn btn-finish" onclick="updateStatus('${child.key}', 'Completed')">Finish</button>
+                        </div>
+                    </div>`;
+            }
+        });
+        if(hasNew) document.getElementById('order-beep').play();
+    });
+}
+
+function updateStatus(id, status) {
+    db.ref('house_service_bookings/' + id).update({ status: status });
+    document.getElementById('work-status').innerText = status;
+    alert("Status Updated to: " + status);
+}
+
+// ✅ Save Service/Product with Identity
+function addNewProduct() {
+    const shopName = document.getElementById('merchant-display-name').innerText; 
+    const merchantID = localStorage.getItem('userPhone');
+    
+    const name = document.getElementById('new-food-name').value;
+    const price = document.getElementById('new-food-price').value;
+    const img = document.getElementById('new-food-img').value;
+
+    if(name && price) {
+        db.ref('allFoodItems').push({
+            name: name,
+            price: price,
+            img: img || 'service-placeholder.png',
+            shopName: shopName,    // ✅ Essential for Customer View
+            merchantID: merchantID, // ✅ Essential for Data Isolation
+            status: 'In Stock',
+            category: 'House Service',
+            timestamp: new Date().getTime()
+        });
+        alert("Success! " + name + " is now live from " + shopName);
+        document.getElementById('new-food-name').value = "";
+        document.getElementById('new-food-price').value = "";
+    } else {
+        alert("Please fill name and price!");
+    }
+}
+
+function initMap(workerID) {
+    map = L.map('map').setView([23.5, 88.5], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    workerMarker = L.marker([23.5, 88.5]).addTo(map).bindPopup('You are here').openPopup();
+
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            map.setView([lat, lon], 15);
+            workerMarker.setLatLng([lat, lon]);
+            db.ref('active_workers/' + workerID).update({ lat, lon, lastActive: new Date().getTime() });
+        });
+    }
+}
+
+function navigateToCustomer(location) {
+    if(!location) return alert("Location not provided!");
+    window.open(`http://googleusercontent.com/maps.google.com/3{location}`, '_blank');
+}
+</script>
+</body>
+</html>

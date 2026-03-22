@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS - Official Rules & Regulations</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-dark: #1e293b;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            margin: 0;
+            color: var(--text-dark);
+            padding-bottom: 90px;
+        }
+
+        /* --- Header --- */
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header-title { font-weight: 800; font-size: 20px; color: var(--gold); text-shadow: 1px 1px black; letter-spacing: 1px; }
+
+        .container { padding: 20px; }
+
+        /* --- Policy Card --- */
+        .policy-card {
+            background: var(--white);
+            border-radius: 20px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            transition: 0.3s;
+        }
+
+        .policy-header {
+            padding: 18px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: #fff;
+        }
+        .policy-header h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 12px; }
+        .policy-header i.toggle-icon { color: var(--gold); transition: 0.3s; }
+
+        .policy-body {
+            padding: 0 20px;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: #fafafa;
+        }
+        .policy-body p { padding: 15px 0; font-size: 13px; line-height: 1.6; color: #4b5563; margin: 0; white-space: pre-line; }
+
+        .policy-card.active .policy-body { max-height: 1000px; padding: 0 20px 15px; }
+        .policy-card.active .toggle-icon { transform: rotate(180deg); }
+
+        /* --- Contact Section --- */
+        .contact-box {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            background: var(--sidebar-bg);
+            border-radius: 25px;
+            border: 2px dashed var(--gold);
+        }
+        .support-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #25D366;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 800;
+            margin-top: 15px;
+            box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3);
+        }
+
+        /* --- Bottom Nav --- */
+        .bottom-nav {
+            position: fixed; bottom: 0; width: 100%; height: 75px;
+            background: white; display: flex; justify-content: space-around;
+            align-items: center; border-radius: 25px 25px 0 0;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.05); z-index: 1000;
+        }
+        .nav-link { text-align: center; text-decoration: none; color: var(--text-gray); font-weight: 800; font-size: 10px; flex: 1; }
+        .nav-link i { font-size: 24px; display: block; margin-bottom: 4px; }
+        
+        #loading-screen { text-align: center; margin-top: 50px; color: var(--primary); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">RULES & REGULATIONS</div>
+    </header>
+
+    <div class="container">
+        <div id="loading-screen"><i class="fas fa-spinner fa-spin"></i> Loading Official Policies...</div>
+        <div id="rules-container"></div>
+
+        <div class="contact-box">
+            <h4 style="margin:0;">Need more clarity?</h4>
+            <p style="font-size: 11px; color: gray;">Our support team is available 24/7 to assist you with any policy-related questions.</p>
+            <a href="https://wa.me/916297474412" class="support-btn">
+                <i class="fab fa-whatsapp"></i> CHAT WITH SUPPORT
+            </a>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-link"><i class="fas fa-house"></i>HOME</a>
+        <a href="cart.html" class="nav-link"><i class="fas fa-shopping-basket"></i>CART</a>
+        <a href="account.html" class="nav-link"><i class="fas fa-user-circle"></i>ACCOUNT</a>
+    </nav>
+
+<script>
+// --- Firebase Config ---
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8",
+    measurementId: "G-MWX8QCMNNH"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// --- 🔄 Fetch Rules from Firebase (Admin Controlled) ---
+function loadOfficialRules() {
+    db.ref('app_settings/rules').on('value', snap => {
+        const container = document.getElementById('rules-container');
+        const loading = document.getElementById('loading-screen');
+        container.innerHTML = "";
+        loading.style.display = 'none';
+
+        if(!snap.exists()) {
+            container.innerHTML = `<p style="text-align:center; color:gray;">No rules published yet.</p>`;
+            return;
+        }
+
+        snap.forEach(child => {
+            const rule = child.val();
+            const card = document.createElement('div');
+            card.className = 'policy-card';
+            card.innerHTML = `
+                <div class="policy-header" onclick="togglePolicy(this)">
+                    <h3><i class="${rule.icon || 'fas fa-shield-alt'}"></i> ${rule.title}</h3>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="policy-body">
+                    <p>${rule.content}</p>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    });
+}
+
+// --- Card Toggle Logic ---
+function togglePolicy(element) {
+    const card = element.parentElement;
+    const isActive = card.classList.contains('active');
+    
+    // Close all other cards (Accordion Effect)
+    document.querySelectorAll('.policy-card').forEach(c => c.classList.remove('active'));
+    
+    // Toggle current
+    if (!isActive) card.classList.add('active');
+}
+
+window.onload = loadOfficialRules;
+</script>
+</body>
+</html>

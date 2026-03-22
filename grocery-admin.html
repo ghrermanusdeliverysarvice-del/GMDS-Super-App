@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS - Grocery Merchant Panel</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-dark: #1e293b;
+            --danger: #ef4444;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            margin: 0;
+            padding-bottom: 50px;
+            color: var(--text-dark);
+        }
+
+        /* --- Header --- */
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .container { padding: 15px; }
+
+        /* --- Stats Dashboard --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: var(--white);
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            border-bottom: 4px solid var(--gold);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+        }
+        .stat-card h2 { margin: 5px 0; color: var(--primary); }
+
+        /* --- Order Card --- */
+        .order-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-left: 8px solid var(--gold);
+        }
+        .item-list { font-size: 13px; color: var(--text-dark); background: #f1f5f9; padding: 12px; border-radius: 12px; margin: 10px 0; }
+
+        .btn-status {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 15px;
+        }
+        .btn { border: none; padding: 12px; border-radius: 10px; color: #fff; font-weight: bold; cursor: pointer; font-size: 11px; }
+        .btn-accept { background: #3b82f6; }
+        .btn-pack { background: #f59e0b; }
+        .btn-ready { background: var(--primary); }
+
+        /* --- Inventory Section --- */
+        .inventory-section {
+            background: var(--white);
+            padding: 20px;
+            border-radius: 20px;
+            margin-top: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+        .product-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; border-bottom: 1px solid #eee;
+        }
+
+        /* --- Add Product Form --- */
+        .add-box {
+            background: var(--sidebar-bg);
+            padding: 20px;
+            border-radius: 20px;
+            margin-top: 20px;
+            border: 1.5px dashed var(--gold);
+        }
+        .input-field {
+            width: 100%; padding: 12px; margin-bottom: 12px;
+            border: 1px solid #ddd; border-radius: 12px; box-sizing: border-box;
+            outline: none; font-family: inherit;
+        }
+
+        /* --- Security Lock --- */
+        #security-lock {
+            position: fixed; inset: 0; background: #fff; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="security-lock">
+        <i class="fas fa-user-lock" style="font-size: 60px; color: var(--primary); margin-bottom: 20px;"></i>
+        <h2>Merchant Access Locked</h2>
+        <p>This panel is for authorized GMDS Grocery Partners only. Please login through the home gateway.</p>
+        <button onclick="window.location.href='account.html'" style="padding:12px 30px; background:var(--primary); color:#fff; border:none; border-radius:12px; font-weight:bold; margin-top:20px;">GO TO LOGIN</button>
+    </div>
+
+    <header>
+        <div>
+            <h4 style="margin:0;" id="shop-display-name">Loading Store...</h4>
+            <small id="merchant-id-badge">Merchant ID: Verifying...</small>
+        </div>
+        <i class="fas fa-store-alt" style="font-size: 22px; color: var(--gold);"></i>
+    </header>
+
+    <div class="container" id="admin-content" style="display:none;">
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <small>Today's Sales</small>
+                <h2 id="revenue">৳0</h2>
+            </div>
+            <div class="stat-card">
+                <small>Active Orders</small>
+                <h2 id="order-count">0</h2>
+            </div>
+        </div>
+
+        <h4 style="color: var(--primary);"><i class="fas fa-shopping-basket"></i> New Incoming Orders</h4>
+        <div id="order-container">
+            <p style="text-align:center; color:gray; font-size:12px;">Searching for fresh orders...</p>
+        </div>
+
+        <div class="add-box">
+            <h4 style="margin-top:0;"><i class="fas fa-plus-circle"></i> Add New Grocery Product</h4>
+            <input type="text" id="p-name" class="input-field" placeholder="Product Name (e.g. Fortune Oil)">
+            <input type="number" id="p-price" class="input-field" placeholder="Price (৳)">
+            <input type="text" id="p-img" class="input-field" placeholder="Image Filename (e.g. oil.png)">
+            <select id="p-cat" class="input-field">
+                <option value="Rice">Rice & Grains</option>
+                <option value="Oil">Cooking Oil</option>
+                <option value="Spices">Spices</option>
+                <option value="Cleaning">Cleaning Care</option>
+            </select>
+            <button class="btn btn-pack" style="width:100%; background:var(--primary); font-size:14px;" onclick="addNewProduct()">SAVE PRODUCT</button>
+        </div>
+
+        <div class="inventory-section">
+            <h4 style="margin-top:0;"><i class="fas fa-boxes-stacked"></i> Inventory Management</h4>
+            <div id="inventory-list">
+                </div>
+        </div>
+
+    </div>
+
+    <audio id="alert-sound" src="https://www.soundjay.com/buttons/sounds/beep-01a.mp3" preload="auto"></audio>
+
+<script>
+// --- Firebase Config ---
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8",
+    measurementId: "G-MWX8QCMNNH"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// --- Security & Identification Patch ---
+window.onload = () => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const userPhone = localStorage.getItem('userPhone'); 
+    const adminKey = sessionStorage.getItem('adminAllowed');
+
+    if (adminKey === 'true' && isLoggedIn === 'true') {
+        // ১. Verify Merchant via Database and load Shop Name
+        db.ref('merchants/' + userPhone).once('value', snap => {
+            const merchantData = snap.val();
+            if (merchantData) {
+                document.getElementById('shop-display-name').innerText = merchantData.shopName;
+                document.getElementById('merchant-id-badge').innerText = "ID: " + userPhone;
+                
+                document.getElementById('security-lock').style.display = 'none';
+                document.getElementById('admin-content').style.display = 'block';
+                
+                // ২. Load Merchant Specific Services
+                loadMyOrders(userPhone); 
+                loadMyInventory(userPhone);
+                syncLocation(userPhone);
+            } else {
+                alert("Unauthorized Access! This number is not a registered partner.");
+                window.location.href = "account.html";
+            }
+        });
+    } else {
+        setTimeout(() => { window.location.href = "account.html"; }, 1500);
+    }
+};
+
+// --- Multi-Admin Order Loading (Data Isolation) ---
+function loadMyOrders(merchantID) {
+    db.ref('grocery_orders')
+      .orderByChild('merchantID')
+      .equalTo(merchantID) // Only shows orders for this specific store
+      .on('value', snap => {
+        const container = document.getElementById('order-container');
+        container.innerHTML = "";
+        let count = 0;
+        let revenue = 0;
+        
+        snap.forEach(child => {
+            const order = child.val();
+            if(order.status !== 'Delivered') {
+                count++;
+                revenue += parseFloat(order.totalPrice || 0);
+                container.innerHTML += `
+                    <div class="order-card">
+                        <b>ORDER ID: #${child.key.slice(-5)}</b><br>
+                        <small style="color:gray;">Customer: ${order.customerPhone}</small>
+                        <div class="item-list">${order.items}</div>
+                        <div class="btn-status">
+                            <button class="btn btn-accept" onclick="updateStatus('${child.key}', 'Accepted')">Accept</button>
+                            <button class="btn btn-pack" onclick="updateStatus('${child.key}', 'Packing')">Packing</button>
+                            <button class="btn btn-ready" onclick="updateStatus('${child.key}', 'Ready')">Ready</button>
+                        </div>
+                    </div>`;
+            }
+        });
+        document.getElementById('order-count').innerText = count;
+        document.getElementById('revenue').innerText = "৳" + revenue;
+        if(count > 0) document.getElementById('alert-sound').play();
+    });
+}
+
+function updateStatus(id, status) {
+    db.ref('grocery_orders/' + id).update({ status: status });
+    alert("Status Updated: " + status);
+}
+
+// --- Professional Add Product with Shop Identity ---
+function addNewProduct() {
+    const shopName = document.getElementById('shop-display-name').innerText; 
+    const merchantID = localStorage.getItem('userPhone');
+    
+    const name = document.getElementById('p-name').value;
+    const price = document.getElementById('p-price').value;
+    const img = document.getElementById('p-img').value;
+    const cat = document.getElementById('p-cat').value;
+
+    if(name && price) {
+        db.ref('allGroceryItems').push({
+            name: name,
+            price: price,
+            img: img || 'grocery-default.png',
+            shopName: shopName,    // ✅ Essential for Customer App Display
+            merchantID: merchantID, // ✅ Essential for Data Isolation
+            category: cat,
+            status: 'In Stock',
+            timestamp: new Date().getTime()
+        });
+        alert("Success! " + name + " is now live from " + shopName);
+        document.getElementById('p-name').value = "";
+        document.getElementById('p-price').value = "";
+    } else {
+        alert("Please provide product name and price!");
+    }
+}
+
+// --- Inventory Control ---
+function loadMyInventory(merchantID) {
+    db.ref('allGroceryItems').orderByChild('merchantID').equalTo(merchantID).on('value', snap => {
+        const list = document.getElementById('inventory-list');
+        list.innerHTML = "";
+        snap.forEach(child => {
+            const item = child.val();
+            list.innerHTML += `
+                <div class="product-item">
+                    <span><b>${item.name}</b> (৳${item.price})</span>
+                    <i class="fas ${item.status === 'In Stock' ? 'fa-toggle-on' : 'fa-toggle-off'}" 
+                       style="color:${item.status === 'In Stock' ? 'var(--primary)' : 'gray'}; font-size:24px; cursor:pointer;"
+                       onclick="toggleStock('${child.key}', '${item.status}')"></i>
+                </div>`;
+        });
+    });
+}
+
+function toggleStock(id, current) {
+    const next = current === 'In Stock' ? 'Stock Out' : 'In Stock';
+    db.ref('allGroceryItems/' + id).update({ status: next });
+}
+
+// --- GPS Logistics Sync ---
+function syncLocation(merchantID) {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            db.ref('merchant_locations/' + merchantID).update({
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude,
+                lastSeen: new Date().getTime()
+            });
+        });
+    }
+}
+</script>
+</body>
+</html>

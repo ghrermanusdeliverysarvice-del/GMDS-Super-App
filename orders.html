@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS - My Orders & History</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --app-bg: #dcfce7;  
+            --white: #ffffff;
+            --text-dark: #1e293b;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            margin: 0;
+            padding-bottom: 100px;
+            color: var(--text-dark);
+        }
+
+        /* --- Header --- */
+        header {
+            background-color: var(--primary);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        header i { color: white; font-size: 20px; cursor: pointer; }
+        .header-title { font-weight: 800; font-size: 18px; color: var(--gold); text-shadow: 1px 1px black; }
+
+        /* --- Tabs --- */
+        .tabs {
+            display: flex;
+            background: white;
+            margin: 15px;
+            border-radius: 15px;
+            padding: 5px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 13px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.3s;
+            color: var(--text-dark);
+        }
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        .container { padding: 0 15px; }
+
+        /* --- Order Card --- */
+        .order-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            position: relative;
+        }
+
+        .status-badge {
+            position: absolute; top: 15px; right: 15px;
+            font-size: 10px; font-weight: 800; padding: 4px 10px;
+            border-radius: 50px; text-transform: uppercase;
+        }
+        
+        /* Status Colors */
+        .bg-pending { background: #e2e8f0; color: #64748b; }
+        .bg-cooking { background: #ffedd5; color: #f97316; }
+        .bg-delivery { background: #dbeafe; color: #3b82f6; }
+        .bg-delivered { background: #dcfce7; color: #16a34a; }
+        .bg-cancelled { background: #fee2e2; color: #ef4444; }
+
+        .order-id { font-size: 14px; font-weight: 800; color: var(--primary); display: block; }
+        .order-date { font-size: 10px; color: #94a3b8; }
+        
+        .item-list { font-size: 13px; margin: 10px 0; font-weight: 500; border-left: 3px solid var(--gold); padding-left: 10px; }
+
+        .bill-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 10px; border-top: 1px dashed #eee; padding-top: 10px;
+        }
+        .total-amount { font-weight: 800; font-size: 16px; color: var(--text-dark); }
+
+        /* --- Buttons --- */
+        .action-row { display: flex; gap: 10px; margin-top: 12px; }
+        .btn {
+            flex: 1; padding: 10px; border-radius: 10px; border: none;
+            font-weight: 700; font-size: 11px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; gap: 5px;
+        }
+        .btn-track { background: var(--gold); color: white; }
+        .btn-support { background: #25D366; color: white; }
+        .btn-invoice { background: #f1f5f9; color: var(--text-dark); border: 1px solid #ddd; }
+
+        .empty-state { text-align: center; padding: 50px 20px; color: #94a3b8; }
+        .empty-state i { font-size: 50px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <i class="fas fa-arrow-left" onclick="location.href='account.html'"></i>
+        <div class="header-title">MY ORDERS & HISTORY</div>
+    </header>
+
+    <div class="tabs">
+        <div class="tab-btn active" onclick="switchTab('active', this)">ACTIVE ORDERS</div>
+        <div class="tab-btn" onclick="switchTab('history', this)">HISTORY</div>
+    </div>
+
+    <div class="container" id="orders-container">
+        <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><br>Syncing your orders...</div>
+    </div>
+
+<script>
+// --- Firebase Config ---
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8",
+    measurementId: "G-MWX8QCMNNH"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const userPhone = localStorage.getItem('userPhone');
+let currentView = 'active';
+
+function switchTab(type, el) {
+    currentView = type;
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    el.classList.add('active');
+    loadOrders();
+}
+
+function loadOrders() {
+    if (!userPhone) {
+        document.getElementById('orders-container').innerHTML = `<div class="empty-state">Please login to view orders.</div>`;
+        return;
+    }
+
+    // "all_orders" নোড থেকে ডাটা ফিল্টার করা হচ্ছে
+    db.ref('all_orders').orderByChild('customerPhone').equalTo(userPhone).on('value', snap => {
+        const container = document.getElementById('orders-container');
+        container.innerHTML = "";
+        
+        let found = false;
+
+        snap.forEach(child => {
+            const order = child.val();
+            const orderId = child.key;
+            const status = order.status || 'Pending';
+
+            // Filter logic based on tab
+            const isHistory = (status === 'Delivered' || status === 'Cancelled');
+            if (currentView === 'active' && isHistory) return;
+            if (currentView === 'history' && !isHistory) return;
+
+            found = true;
+            let statusClass = getStatusClass(status);
+
+            container.innerHTML += `
+                <div class="order-card">
+                    <span class="status-badge ${statusClass}">${status}</span>
+                    <span class="order-id">Order ID: #${orderId.slice(-8).toUpperCase()}</span>
+                    <span class="order-date">${order.timestamp}</span>
+                    
+                    <div class="item-list">
+                        ${order.items_summary || "Items loading..."}
+                    </div>
+
+                    <div class="bill-row">
+                        <span style="font-size:12px; color:gray;">Payment: ${order.payment || 'COD'}</span>
+                        <span class="total-amount">Total: ৳${order.grandTotal || order.totalPrice}</span>
+                    </div>
+
+                    <div class="action-row">
+                        ${status === 'Out for Delivery' ? `<button class="btn btn-track" onclick="location.href='tracking.html'"> <i class="fas fa-map-marker-alt"></i> TRACK</button>` : ''}
+                        <button class="btn btn-invoice" onclick="downloadInvoice('${orderId}')"> <i class="fas fa-file-pdf"></i> MEMO</button>
+                        <button class="btn btn-support" onclick="window.location.href='https://wa.me/916297474412?text=Issue with Order #${orderId}'"> <i class="fab fa-whatsapp"></i> HELP</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        if (!found) {
+            container.innerHTML = `<div class="empty-state"><i class="fas fa-box-open"></i><br>No ${currentView} orders found.</div>`;
+        }
+    });
+}
+
+function getStatusClass(status) {
+    switch(status) {
+        case 'Pending': return 'bg-pending';
+        case 'Cooking':
+        case 'Packing': return 'bg-cooking';
+        case 'Out for Delivery': return 'bg-delivery';
+        case 'Delivered': return 'bg-delivered';
+        case 'Cancelled': return 'bg-cancelled';
+        default: return 'bg-pending';
+    }
+}
+
+function downloadInvoice(id) {
+    alert("Generating Digital Memo for Order #" + id.slice(-8).toUpperCase() + "...");
+    // এখানে ভবিষ্যতে আমরা PDF generation logic যুক্ত করতে পারব।
+}
+
+window.onload = loadOrders;
+</script>
+</body>
+</html>
+

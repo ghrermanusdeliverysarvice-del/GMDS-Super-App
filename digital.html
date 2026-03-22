@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS - Digital Seba (Official)</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-main: #1e293b;
+            --text-gray: #6b7280;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            color: var(--text-main);
+            margin: 0;
+            padding-bottom: 90px;
+            overflow-x: hidden;
+        }
+
+        /* --- 🛠️ Sidebar Framework --- */
+        .sidebar {
+            position: fixed; top: 0; left: -100%; width: 280px; height: 100%;
+            background-color: var(--sidebar-bg); z-index: 2500;
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+            padding: 20px; box-sizing: border-box;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column;
+        }
+        .sidebar.active { left: 0; }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; z-index: 2000; backdrop-filter: blur(4px); }
+        .overlay.active { display: block; }
+
+        .sidebar-header {
+            text-align: center; padding-bottom: 20px; border-bottom: 1.5px solid var(--gold); margin-bottom: 15px;
+        }
+        .sidebar-header img { width: 70px; height: 70px; border-radius: 50%; border: 3px solid var(--primary); background: white; margin-bottom: 10px; object-fit: cover; }
+
+        .nav-item {
+            display: flex; align-items: center; gap: 15px; padding: 12px 15px;
+            text-decoration: none; color: var(--text-main); font-weight: 600;
+            border-radius: 10px; margin-bottom: 8px; transition: 0.3s;
+        }
+        .nav-item i { color: var(--primary); width: 25px; font-size: 18px; text-align: center; }
+
+        /* --- Header --- */
+        .header-top {
+            background-color: var(--primary);
+            height: 65px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            position: sticky; top: 0; z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header-top i { font-size: 24px; color: black; cursor: pointer; }
+        .logo-text { font-weight: 800; font-size: 18px; color: var(--gold); text-shadow: 1px 1px black; }
+
+        /* --- 🛠️ Icon Grid (Repair: Edge-to-Edge Icons) --- */
+        .services-container {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px 10px; padding: 20px 15px;
+            background: white; border-radius: 30px; margin: 0 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.02);
+        }
+        .service-icon-card { text-align: center; cursor: pointer; }
+        
+        .icon-circle {
+            width: 70px !important; 
+            height: 70px !important; 
+            border-radius: 50% !important; 
+            background: white !important;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; /* ছবি যেন গোল ফ্রেম ভরাট করে */
+            border: 2px solid var(--gold) !important; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            margin: 0 auto 8px;
+        }
+        
+        /* ✅ এই অংশটি ছবিকে ফ্রেমের সমান বড় করবে */
+        .icon-circle img { 
+            width: 100% !important; 
+            height: 100% !important; 
+            object-fit: cover; /* পুরো গোল জায়গা ভরাট হবে */
+            padding: 0 !important; 
+        }
+        .service-icon-card span { font-size: 10px; font-weight: 800; display: block; color: #1e293b; text-transform: uppercase; }
+
+        /* --- Search & Ads --- */
+        .search-area { padding: 15px; background: white; }
+        .search-box {
+            display: flex; background: #f1f5f9; padding: 12px 18px;
+            border-radius: 50px; border: 1.5px solid #e2e8f0; align-items: center;
+        }
+        .search-box input { border: none; background: transparent; width: 100%; outline: none; flex: 1; font-family: inherit; }
+
+        .ad-slider {
+            width: 92%; height: 140px; margin: 15px auto;
+            border-radius: 20px; overflow: hidden; position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .ad-track img { min-width: 100%; height: 100%; object-fit: cover; background: #eee; }
+
+        /* --- Action Button --- */
+        .action-container { padding: 25px 15px; text-align: center; }
+        .btn-work {
+            background-color: var(--primary); color: white;
+            width: 100%; padding: 16px; border-radius: 20px;
+            font-size: 16px; font-weight: 800; border: none;
+            cursor: pointer; box-shadow: 0 10px 20px rgba(22, 163, 74, 0.2);
+            border: 2px solid var(--gold);
+        }
+
+        /* --- Bottom Panel --- */
+        .form-panel {
+            display: none; background: white; border-radius: 30px 30px 0 0;
+            padding: 25px; position: fixed; bottom: 0; left: 0; width: 100%;
+            box-sizing: border-box; z-index: 3000; box-shadow: 0 -10px 40px rgba(0,0,0,0.3);
+        }
+        .form-input {
+            width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px;
+            border: 1.5px solid #f1f5f9; outline: none; background: #f8fafc; font-family: inherit;
+        }
+        .btn-submit {
+            background: #25D366; color: white; border: none; width: 100%;
+            padding: 16px; border-radius: 15px; font-weight: 800; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px;
+        }
+
+        /* --- Bottom Nav --- */
+        .bottom-nav {
+            position: fixed; bottom: 0; width: 100%; height: 75px;
+            background: white; display: flex; justify-content: space-around;
+            align-items: center; border-radius: 25px 25px 0 0;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.05); z-index: 1000;
+        }
+        .nav-link { text-align: center; text-decoration: none; color: var(--text-gray); font-weight: 800; font-size: 10px; flex: 1; }
+        .nav-link.active { color: var(--primary); }
+        .nav-link i { font-size: 24px; display: block; margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="overlay" id="overlay" onclick="closeAll()"></div>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="sidebar-avatar">
+            <h3 id="side-name" style="margin:0; font-size: 16px;">Verified Member</h3>
+            <p style="font-size: 10px; color: var(--gold); margin:0; font-weight: 800;">GMDS DIGITAL HUB</p>
+        </div>
+
+        <div class="menu-list">
+            <a href="index.html" class="nav-item"><i class="fas fa-house"></i> Home Dashboard</a>
+            <a href="account.html" class="nav-item"><i class="fas fa-user-edit"></i> Profile Settings</a>
+            <a href="https://wa.me/916297474412" class="nav-item"><i class="fas fa-headset"></i> Support Center</a>
+            <a href="rules.html" class="nav-item"><i class="fas fa-shield-halved"></i> Terms & Policies</a>
+            
+            <a href="javascript:void(0)" class="nav-item" style="color:var(--danger); border-top:1px solid #ddd; margin-top:20px; padding-top:20px;" onclick="logout()">
+                <i class="fas fa-right-from-bracket" style="color:var(--danger);"></i> Logout Account
+            </a>
+        </div>
+    </nav>
+
+    <header class="header-top">
+        <i class="fas fa-bars-staggered" onclick="toggleMenu()"></i>
+        <div class="logo-text">GMDS DIGITAL HUB</div>
+        <i class="fas fa-headset" style="color: black;" onclick="window.location.href='https://wa.me/916297474412'"></i>
+    </header>
+
+    <div class="search-area">
+        <div class="search-box">
+            <i class="fas fa-search" style="color: var(--text-gray); margin-right: 12px;"></i>
+            <input type="text" placeholder="Search Pan, Voter, Ration...">
+        </div>
+    </div>
+
+    <div class="ad-slider">
+        <div class="ad-track" id="digital-ads">
+            <img src="digital-ad1.png" onerror="this.src='https://via.placeholder.com/400x140?text=Premium+Digital+Services'">
+        </div>
+    </div>
+
+    <div class="services-container">
+        <div class="service-icon-card" onclick="openRequestForm('Pan Card')">
+            <div class="icon-circle"><img src="pancard.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/11502/11502446.png'"></div>
+            <span>PAN CARD</span>
+        </div>
+        <div class="service-icon-card" onclick="openRequestForm('Voter Card')">
+            <div class="icon-circle"><img src="votercard.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/9135/9135945.png'"></div>
+            <span>VOTER ID</span>
+        </div>
+        <div class="service-icon-card" onclick="openRequestForm('Ration Card')">
+            <div class="icon-circle"><img src="rationcard.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/8141/8141511.png'"></div>
+            <span>RATION</span>
+        </div>
+        <div class="service-icon-card" onclick="openRequestForm('Train Ticket')">
+            <div class="icon-circle"><img src="train-ticket.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2311/2311130.png'"></div>
+            <span>TRAIN TICKET</span>
+        </div>
+        <div class="service-icon-card" onclick="openRequestForm('Electric Bill')">
+            <div class="icon-circle"><img src="electric-bill.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2850/2850422.png'"></div>
+            <span>E-BILL</span>
+        </div>
+        <div class="service-icon-card" onclick="openRequestForm('Form Fillup')">
+            <div class="icon-circle"><img src="online-form.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3534/3534033.png'"></div>
+            <span>FORM FILLUP</span>
+        </div>
+    </div>
+
+    <div class="action-container">
+        <button class="btn-work" onclick="openRequestForm('General Help')">PROCEED TO WORK</button>
+        <p style="font-size: 11px; color: var(--text-gray); margin-top: 10px;">Contact us for professional digital support</p>
+    </div>
+
+    <div class="form-panel" id="form-panel">
+        <h3 style="margin-bottom: 15px; color: var(--primary);">Service Request</h3>
+        <input type="text" id="req-name" class="form-input" placeholder="Full Name">
+        <input type="tel" id="req-phone" class="form-input" placeholder="WhatsApp Number">
+        <select id="req-service" class="form-input">
+            <option value="General Digital Service">Select Desired Service</option>
+            <option value="Pan Card Service">Pan Card Service</option>
+            <option value="Voter ID Service">Voter ID Service</option>
+            <option value="Ration Card Service">Ration Card Service</option>
+            <option value="Train Ticket Booking">Train Ticket Booking</option>
+            <option value="Electric Bill Payment">Electric Bill Payment</option>
+            <option value="Online Form Fillup">Online Form Fillup</option>
+        </select>
+        <button class="btn-submit" onclick="submitToWhatsApp()">
+            <i class="fab fa-whatsapp"></i> SEND TO WHATSAPP
+        </button>
+        <button onclick="closeAll()" style="width:100%; background:none; border:none; color:gray; margin-top:15px; font-weight: bold; cursor:pointer;">DISMISS</button>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-link"><i class="fas fa-house-chimney"></i>HOME</a>
+        <a href="account.html" class="nav-link"><i class="fas fa-circle-user"></i>ACCOUNT</a>
+        <a href="cart.html" class="nav-link"><i class="fas fa-basket-shopping"></i>CART</a>
+    </nav>
+
+<script>
+// --- Firebase Basic Init ---
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+function toggleMenu() {
+    document.getElementById('sidebar').classList.toggle('active');
+    document.getElementById('overlay').classList.toggle('active');
+}
+
+function openRequestForm(serviceType) {
+    if(localStorage.getItem('isLoggedIn') !== 'true') {
+        alert("Authentication Required! Please login to use Digital Seba.");
+        window.location.href = 'account.html';
+        return;
+    }
+    document.getElementById('form-panel').style.display = 'block';
+    document.getElementById('overlay').classList.add('active');
+    if(serviceType) document.getElementById('req-service').value = serviceType + " Service";
+}
+
+function submitToWhatsApp() {
+    const name = document.getElementById('req-name').value;
+    const phone = document.getElementById('req-phone').value;
+    const service = document.getElementById('req-service').value;
+
+    if(!name || !phone) return alert("Validation Failed: Please fill all details!");
+
+    db.ref('service_requests/digital').push({
+        name, phone, service, time: new Date().toLocaleString()
+    });
+
+    const msg = `*GMDS Digital Hub Request*%0AHi, I need help with: ${service}%0AName: ${name}%0APhone: ${phone}`;
+    window.location.href = `https://wa.me/916297474412?text=${msg}`;
+}
+
+function closeAll() {
+    document.getElementById('form-panel').style.display = 'none';
+    document.getElementById('sidebar').classList.remove('active');
+    document.getElementById('overlay').classList.remove('active');
+}
+
+function logout() { localStorage.clear(); location.reload(); }
+
+window.onload = () => {
+    if(localStorage.getItem('isLoggedIn') === 'true') {
+        document.getElementById('req-phone').value = localStorage.getItem('userPhone');
+        document.getElementById('side-name').innerText = "Verified Member";
+        const avatar = localStorage.getItem('userAvatar');
+        if(avatar) document.getElementById('sidebar-avatar').src = avatar;
+    }
+};
+</script>
+</body>
+</html>
