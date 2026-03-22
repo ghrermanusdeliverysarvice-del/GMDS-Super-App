@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS Grocery - Premium Quality</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-dark: #000000;
+            --text-gray: #6b7280;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            margin: 0;
+            padding-bottom: 120px;
+            overflow-x: hidden;
+        }
+
+        /* --- Sidebar & Overlay --- */
+        .sidebar {
+            position: fixed; top: 0; left: -100%; width: 280px; height: 100%;
+            background-color: var(--sidebar-bg); z-index: 2500;
+            transition: 0.4s; padding: 20px; box-sizing: border-box;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.2);
+        }
+        .sidebar.active { left: 0; }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; z-index: 2000; }
+        .overlay.active { display: block; }
+        .nav-item { display: flex; align-items: center; gap: 15px; padding: 15px; text-decoration: none; color: var(--text-dark); font-weight: 600; border-radius: 12px; margin-bottom: 10px; }
+        .nav-item i { color: var(--primary); }
+
+        /* --- Header & Sticky Search --- */
+        .sticky-header {
+            position: sticky; top: 0; z-index: 1000;
+            background: var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .header-top { height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; color: white; }
+        .header-top i { font-size: 24px; color: black; cursor: pointer; }
+        .logo-text { font-weight: 800; font-size: 20px; color: var(--gold); text-shadow: 1px 1px black; }
+
+        .search-area { padding: 10px 15px; background: white; }
+        .search-box { display: flex; background: #f1f5f9; padding: 10px 15px; border-radius: 50px; border: 1.5px solid #e2e8f0; }
+        .search-box input { border: none; background: transparent; width: 100%; outline: none; }
+
+        .category-nav { display: flex; overflow-x: auto; background: white; padding: 10px 15px; gap: 10px; scrollbar-width: none; border-bottom: 1px solid #eee; }
+        .cat-chip { padding: 8px 18px; background: #f1f5f9; border-radius: 20px; white-space: nowrap; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .cat-chip.active { background: var(--primary); color: white; }
+
+        /* --- Professional Product Grid --- */
+        .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
+        .product-card { background: white; border-radius: 20px; padding: 12px; position: relative; border: 1px solid #f1f5f9; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        
+        .product-img { 
+            width: 100% !important; 
+            height: 125px !important; 
+            border-radius: 12px !important; 
+            object-fit: contain !important; 
+            background: #f8fafc; 
+            margin-bottom: 8px; 
+        }
+
+        .product-name { font-size: 13px; font-weight: 800; color: var(--text-dark); height: 38px; overflow: hidden; line-height: 1.2; }
+        .shop-name { font-size: 9px; color: var(--gold); font-weight: bold; margin-bottom: 8px; display: block; }
+        .price { font-weight: 800; color: var(--primary); font-size: 14px; }
+        .add-btn { background: var(--gold); color: white; border: none; padding: 6px 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 11px; transition: 0.3s; }
+        
+        .stock-out { opacity: 0.6; filter: grayscale(1); pointer-events: none; }
+        .oos-label { position: absolute; top: 10px; right: 10px; background: #64748b; color: white; font-size: 9px; padding: 3px 7px; border-radius: 5px; font-weight: bold; z-index: 10; }
+
+        /* --- Floating & Bottom Nav --- */
+        .floating-cart { position: fixed; bottom: 85px; left: 15px; right: 15px; background: #1e293b; color: white; padding: 15px 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1000; display: none; }
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 75px; background: white; display: flex; justify-content: space-around; align-items: center; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); z-index: 1001; }
+        .nav-link { text-align: center; text-decoration: none; color: var(--text-gray); font-weight: 800; font-size: 10px; flex: 1; }
+        .nav-link.active { color: var(--primary); }
+        .nav-link i { font-size: 24px; display: block; margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+    <nav class="sidebar" id="sidebar">
+        <div style="text-align: center; padding-bottom: 20px; border-bottom: 2px solid var(--gold);">
+            <h3 id="side-name">Verified Member</h3>
+        </div>
+        <a href="index.html" class="nav-item"><i class="fas fa-house"></i> Home Dashboard</a>
+        <a href="account.html" class="nav-item"><i class="fas fa-user-circle"></i> Profile Settings</a>
+        <a href="javascript:void(0)" class="nav-item" style="color: var(--danger); margin-top: 50px;" onclick="logout()">
+            <i class="fas fa-power-off"></i> Logout
+        </a>
+    </nav>
+
+    <div class="sticky-header">
+        <header class="header-top">
+            <i class="fas fa-bars-staggered" onclick="toggleMenu()"></i>
+            <div class="logo-text">GMDS GROCERY</div>
+            <i class="fas fa-shopping-basket" onclick="location.href='cart.html'"></i>
+        </header>
+
+        <div class="search-area">
+            <div class="search-box">
+                <i class="fas fa-search" style="color: var(--text-gray); margin-right: 10px;"></i>
+                <input type="text" id="grocery-search" placeholder="Search essential items..." onkeyup="searchGrocery(this.value)">
+            </div>
+        </div>
+
+        <div class="category-nav">
+            <div class="cat-chip active" onclick="loadGrocery('All')">All Items</div>
+            <div class="cat-chip" onclick="loadGrocery('Rice')">Rice</div>
+            <div class="cat-chip" onclick="loadGrocery('Oil')">Oil</div>
+            <div class="cat-chip" onclick="loadGrocery('Spices')">Spices</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="product-grid" id="grocery-container"></div>
+    </div>
+
+    <div class="floating-cart" id="floating-cart">
+        <span id="cart-info">0 Items | ৳0</span>
+        <b onclick="location.href='cart.html'" style="cursor:pointer;">VIEW CART <i class="fas fa-arrow-right"></i></b>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-link"><i class="fas fa-house-chimney"></i>HOME</a>
+        <a href="account.html" class="nav-link"><i class="fas fa-circle-user"></i>ACCOUNT</a>
+        <a href="cart.html" class="nav-link active"><i class="fas fa-basket-shopping"></i>CART</a>
+    </nav>
+
+<script>
+// 1. Professional Firebase Configuration (Singapore Server)
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app/", 
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8"
+};
+
+// Initialize Firebase
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.database();
+const auth = firebase.auth();
+
+let cart = JSON.parse(localStorage.getItem('gmds_cart')) || {};
+
+// 2. Auth State Management
+auth.onAuthStateChanged(user => {
+    const sideName = document.getElementById('side-name');
+    if (user) {
+        sideName.innerText = "Verified: " + (user.displayName || user.phoneNumber || "Member");
+        localStorage.setItem('isLoggedIn', 'true');
+    } else {
+        sideName.innerText = "Guest User (Login Required)";
+        localStorage.setItem('isLoggedIn', 'false');
+    }
+});
+
+function toggleMenu() {
+    document.getElementById('sidebar').classList.toggle('active');
+    document.getElementById('overlay').classList.toggle('active');
+}
+
+// 3. Optimized Product Loader
+function loadGrocery(category = 'All') {
+    const container = document.getElementById('grocery-container');
+    container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:30px; font-weight:600; color:var(--primary);">
+        <i class="fas fa-spinner fa-spin"></i> Loading Fresh Items...</div>`;
+    
+    // Update Active Chips
+    document.querySelectorAll('.cat-chip').forEach(chip => {
+        chip.classList.remove('active');
+        if(chip.innerText === category || (category === 'All' && chip.innerText === 'All Items')) {
+            chip.classList.add('active');
+        }
+    });
+
+    db.ref('allGroceryItems').on('value', snap => {
+        container.innerHTML = "";
+        if (!snap.exists()) {
+            container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:50px;">No items found.</div>`;
+            return;
+        }
+
+        snap.forEach(child => {
+            const item = child.val();
+            const id = child.key;
+            if(category !== 'All' && item.category !== category) return;
+            
+            const isOut = item.status === "Stock Out";
+
+            container.innerHTML += `
+                <div class="product-card ${isOut ? 'stock-out' : ''}" data-name="${item.name.toLowerCase()}">
+                    ${isOut ? '<div class="oos-label">STOCK OUT</div>' : ''}
+                    <img src="${item.img}" onerror="this.src='https://via.placeholder.com/150?text=GMDS+Grocery'" class="product-img">
+                    <div class="product-name">${item.name}</div>
+                    <span class="shop-name"><i class="fas fa-store"></i> ${item.shopName || 'GMDS Partner'}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                        <div class="price">৳${item.price}</div>
+                        <button class="add-btn" onclick="addToCart(this, '${id}', '${item.name}', ${item.price}, '${item.shopName}')" ${isOut ? 'disabled' : ''}>ADD</button>
+                    </div>
+                </div>`;
+        });
+    });
+}
+
+// 4. Cart Logic with Visual Feedback
+function addToCart(btn, id, name, price, shop) {
+    if(localStorage.getItem('isLoggedIn') !== 'true') {
+        alert("Please login to add items to cart!");
+        window.location.href = 'account.html';
+        return;
+    }
+
+    if(!cart[id]) cart[id] = { name, price, shopName: shop || 'GMDS', qty: 0 };
+    cart[id].qty += 1;
+    
+    localStorage.setItem('gmds_cart', JSON.stringify(cart));
+    updateCartUI();
+
+    // Button Animation
+    const originalText = btn.innerHTML;
+    btn.innerHTML = "<i class='fas fa-check'></i>";
+    btn.style.background = "#16a34a";
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.background = "#d4af37";
+    }, 1000);
+}
+
+function updateCartUI() {
+    let totalItems = 0, totalPrice = 0;
+    Object.values(cart).forEach(i => {
+        totalItems += i.qty;
+        totalPrice += (i.qty * i.price);
+    });
+    
+    const fCart = document.getElementById('floating-cart');
+    if(totalItems > 0) {
+        fCart.style.display = 'flex';
+        document.getElementById('cart-info').innerText = `${totalItems} Items | ৳${totalPrice}`;
+    } else { 
+        fCart.style.display = 'none'; 
+    }
+}
+
+// 5. Search & Session
+function searchGrocery(val) {
+    const cards = document.querySelectorAll('.product-card');
+    cards.forEach(card => {
+        const name = card.getAttribute('data-name');
+        card.style.display = name.includes(val.toLowerCase()) ? "block" : "none";
+    });
+}
+
+function logout() {
+    if(confirm("Logout from GMDS?")) {
+        auth.signOut().then(() => {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        });
+    }
+}
+
+window.onload = () => {
+    loadGrocery('All');
+    updateCartUI();
+};
+</script>
+</body>
+</html>
