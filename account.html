@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS - Account & Security</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-main: #000000;
+            --text-gray: #6b7280;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            color: var(--text-main);
+            margin: 0;
+            padding-bottom: 90px;
+        }
+
+        /* --- Profile Header --- */
+        .profile-header {
+            background-color: var(--primary);
+            padding: 40px 20px;
+            text-align: center;
+            border-radius: 0 0 40px 40px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .avatar-selection {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 15px;
+            border: 4px solid var(--gold);
+            border-radius: 50%;
+            background: #fff;
+            padding: 5px;
+        }
+        #current-avatar { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+        .gender-pick { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
+        .gender-btn {
+            background: var(--sidebar-bg); border: 1px solid var(--gold);
+            padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer;
+        }
+
+        /* --- Auth Card --- */
+        .auth-card {
+            background: #fff; margin: -30px 20px 20px;
+            border-radius: 25px; padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            border: 1px solid var(--gold);
+        }
+
+        .auth-card h3 { margin-top: 0; text-align: center; color: var(--primary); }
+        .input-box {
+            width: 100%; padding: 15px; margin-bottom: 12px;
+            border-radius: 12px; border: 1.5px solid #eee; outline: none;
+            box-sizing: border-box; font-family: inherit;
+        }
+
+        .btn-main {
+            width: 100%; padding: 15px; border-radius: 12px;
+            border: none; background: var(--primary); color: #fff;
+            font-weight: 800; cursor: pointer; transition: 0.3s;
+        }
+
+        .btn-google {
+            width: 100%; padding: 12px; margin-top: 10px;
+            border-radius: 12px; border: 1.5px solid #eee;
+            background: #fff; display: flex; align-items: center; justify-content: center; gap: 10px;
+            font-weight: 600; cursor: pointer;
+        }
+
+        .user-panel { display: none; padding: 0 20px; }
+        .info-item {
+            background: #fff; padding: 15px; border-radius: 15px; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 15px; border: 1px solid #eee;
+        }
+        .info-item i { color: var(--primary); width: 20px; text-align: center; }
+        
+        .bottom-nav {
+            position: fixed; bottom: 0; width: 100%; height: 75px;
+            background: white; display: flex; justify-content: space-around;
+            align-items: center; border-radius: 25px 25px 0 0;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.05); z-index: 1000;
+        }
+        .nav-link { text-align: center; text-decoration: none; color: var(--text-gray); font-weight: 800; font-size: 10px; flex: 1; }
+        .nav-link.active { color: var(--primary); }
+        .nav-link i { font-size: 24px; display: block; margin-bottom: 4px; }
+        
+        .btn-logout { background: #ef4444; color: white; border: none; padding: 15px; border-radius: 12px; margin-top: 20px; width: 100%; font-weight: 800; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="profile-header">
+        <div class="avatar-selection">
+            <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="current-avatar">
+        </div>
+        <div class="gender-pick" id="gender-selectors">
+            <div class="gender-btn" onclick="setAvatar('male')">MALE (3D)</div>
+            <div class="gender-btn" onclick="setAvatar('female')">FEMALE (3D)</div>
+        </div>
+        <h2 id="display-user-name" style="color: white; margin: 10px 0 0;">Welcome Guest</h2>
+        <small id="user-location" style="color: var(--sidebar-bg); font-weight: bold;"><i class="fas fa-map-marker-alt"></i> Location Check Active</small>
+    </div>
+
+    <div class="auth-card" id="login-section">
+        <h3><i class="fas fa-user-shield"></i> Secure Access</h3>
+        <div id="recaptcha-container"></div> <input type="tel" id="userPhone" class="input-box" placeholder="Phone (e.g. +91...)">
+
+        <div id="otp-area" style="display: none;">
+            <input type="number" id="otpCode" class="input-box" placeholder="6-Digit OTP">
+            <button class="btn-main" style="background: var(--gold);" onclick="verifyOTP()">VERIFY & LOGIN</button>
+        </div>
+
+        <div id="pass-area" style="display: none;">
+            <input type="password" id="masterPass" class="input-box" placeholder="Secret Password">
+            <button class="btn-main" onclick="loginWithMasterPass()">LOGIN NOW</button>
+        </div>
+
+        <div id="initial-auth-btns" style="margin-top: 15px;">
+            <button class="btn-main" onclick="sendOTPRequest()">SEND OTP CODE</button>
+            <button class="btn-google" style="margin-top:10px;" onclick="showPassLogin()">
+                <i class="fas fa-key"></i> Use Master Password
+            </button>
+        </div>
+
+        <div style="text-align: center; margin: 15px 0; color: #ccc; font-size: 12px;">OR</div>
+        
+        <button class="btn-google" onclick="googleLogin()">
+            <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" width="20"> Continue with Google
+        </button>
+    </div>
+
+    <div class="user-panel" id="profile-section">
+        <div class="info-item">
+            <i class="fas fa-phone"></i>
+            <div><small style="color:gray">Identity</small><br><b id="profile-phone">Not Set</b></div>
+        </div>
+
+        <div class="info-item" onclick="location.href='orders.html'" style="cursor:pointer; border: 1.5px solid var(--gold);">
+            <i class="fas fa-history"></i>
+            <div style="flex-grow: 1;"><b>Order History</b></div>
+            <i class="fas fa-chevron-right"></i>
+        </div>
+
+        <button class="btn-logout" onclick="logout()">LOGOUT</button>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-link"><i class="fas fa-house"></i>HOME</a>
+        <a href="cart.html" class="nav-link"><i class="fas fa-shopping-basket"></i>CART</a>
+        <a href="account.html" class="nav-link active"><i class="fas fa-user-circle"></i>ACCOUNT</a>
+    </nav>
+
+<script>
+// --- Professional Firebase Configuration ---
+const firebaseConfig = {
+    apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+    authDomain: "gmds-super-app.firebaseapp.com",
+    databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app/", 
+    projectId: "gmds-super-app",
+    storageBucket: "gmds-super-app.appspot.com",
+    messagingSenderId: "872768042776",
+    appId: "1:872768042776:web:5c64e3a6ce4da6229faa8"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+// --- GPS System ---
+function trackUser() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            localStorage.setItem('userLat', lat);
+            localStorage.setItem('userLon', lon);
+            document.getElementById('user-location').innerHTML = `<i class="fas fa-check-circle"></i> Location Verified`;
+        });
+    }
+}
+
+// --- Login Logic ---
+function showPassLogin() {
+    document.getElementById('initial-auth-btns').style.display = 'none';
+    document.getElementById('pass-area').style.display = 'block';
+}
+
+function googleLogin() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).then((result) => {
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userPhone', result.user.email);
+        localStorage.setItem('userAvatar', result.user.photoURL);
+        location.reload();
+    }).catch(err => alert("Google Error: " + err.message));
+}
+
+function loginWithMasterPass() {
+    const phone = document.getElementById('userPhone').value;
+    const pass = document.getElementById('masterPass').value;
+
+    db.ref('users/' + phone).once('value', snap => {
+        const data = snap.val();
+        if(data && data.masterPassword === pass) {
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('userPhone', phone);
+            location.reload();
+        } else {
+            alert("Invalid Password or Phone!");
+        }
+    });
+}
+
+// --- OTP Handlers ---
+let confirmationResult;
+function sendOTPRequest() {
+    const phone = document.getElementById('userPhone').value;
+    if(!phone.startsWith('+')) return alert("Use format: +919000000000");
+
+    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
+    auth.signInWithPhoneNumber(phone, window.recaptchaVerifier).then(result => {
+        confirmationResult = result;
+        document.getElementById('initial-auth-btns').style.display = 'none';
+        document.getElementById('otp-area').style.display = 'block';
+        alert("OTP Sent!");
+    }).catch(err => alert(err.message));
+}
+
+function verifyOTP() {
+    const code = document.getElementById('otpCode').value;
+    confirmationResult.confirm(code).then(() => {
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userPhone', document.getElementById('userPhone').value);
+        location.reload();
+    }).catch(() => alert("Wrong OTP!"));
+}
+
+function setAvatar(gender) {
+    const img = (gender === 'male') ? 'https://cdn-icons-png.flaticon.com/512/4140/4140048.png' : 'https://cdn-icons-png.flaticon.com/512/4140/4140047.png';
+    document.getElementById('current-avatar').src = img;
+    localStorage.setItem('userAvatar', img);
+}
+
+function logout() { localStorage.clear(); auth.signOut(); location.reload(); }
+
+window.onload = () => {
+    trackUser();
+    if(localStorage.getItem('isLoggedIn') === 'true') {
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('gender-selectors').style.display = 'none';
+        document.getElementById('profile-section').style.display = 'block';
+        document.getElementById('display-user-name').innerText = "Verified Member";
+        document.getElementById('profile-phone').innerText = localStorage.getItem('userPhone');
+        const savedAvatar = localStorage.getItem('userAvatar');
+        if(savedAvatar) document.getElementById('current-avatar').src = savedAvatar;
+    }
+};
+</script>
+</body>
+</html>
