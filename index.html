@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDS - Official Super App</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #16a34a; 
+            --gold: #d4af37;    
+            --sidebar-bg: #fef3c7; 
+            --app-bg: #dcfce7;  
+            --text-main: #000000;
+            --text-gray: #6b7280;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--app-bg);
+            margin: 0;
+            padding-bottom: 90px;
+            overflow-x: hidden;
+        }
+
+        /* --- UI Elements --- */
+        .header-top {
+            background-color: var(--primary);
+            height: 65px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            position: sticky; top: 0; z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .header-top i { font-size: 24px; color: black; cursor: pointer; }
+        .logo-text { font-weight: 800; font-size: 22px; color: var(--gold); text-shadow: 1px 1px black; }
+
+        .sidebar {
+            position: fixed; top: 0; left: -100%; width: 280px; height: 100%;
+            background-color: var(--sidebar-bg); z-index: 2000;
+            transition: 0.4s ease; padding: 20px; box-sizing: border-box;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.2); display: flex; flex-direction: column;
+        }
+        .sidebar.active { left: 0; }
+        .sidebar-user { text-align: center; border-bottom: 2px solid var(--gold); padding-bottom: 15px; margin-bottom: 15px; }
+        .avatar-box img { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--primary); background: white; }
+
+        .nav-item { display: flex; align-items: center; gap: 15px; padding: 12px; text-decoration: none; color: var(--text-main); font-weight: 600; border-radius: 10px; margin-bottom: 5px; cursor: pointer; }
+        .nav-item i { color: var(--primary); width: 25px; }
+
+        .search-area { padding: 15px; background: white; }
+        .search-box {
+            display: flex; background: #f1f5f9; padding: 12px 18px;
+            border-radius: 50px; border: 1.5px solid #e2e8f0; align-items: center;
+        }
+        .search-box input { border: none; background: transparent; width: 100%; outline: none; font-family: inherit; }
+
+        .ad-slider {
+            width: 92%; height: 140px; margin: 10px auto;
+            border-radius: 20px; overflow: hidden; position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); background: #eee;
+        }
+        .ad-track { display: flex; transition: 0.6s ease-in-out; height: 100%; }
+        .ad-track img { min-width: 100%; height: 100%; object-fit: cover; }
+
+        .container { padding: 0 15px; }
+        .delivery-box {
+            background: white; border-radius: 25px; padding: 20px;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
+            margin: 15px 0; box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+        }
+        .icon-card { text-align: center; cursor: pointer; }
+        .icon-card img { width: 55px; height: 55px; border-radius: 12px; margin-bottom: 5px; object-fit: cover; }
+        .icon-card b { display: block; font-size: 11px; text-transform: uppercase; }
+
+        .round-row { display: flex; justify-content: space-around; margin: 20px 0; }
+        .round-item { text-align: center; cursor: pointer; }
+        .round-item .circle {
+            width: 65px; height: 65px; border-radius: 50%; background: white;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; border: 2px solid var(--gold); box-shadow: 0 4px 10px rgba(0,0,0,0.08); margin: 0 auto;
+        }
+        .round-item img { width: 100%; height: 100%; object-fit: cover; }
+        .round-item span { display: block; margin-top: 8px; font-size: 11px; font-weight: 800; }
+
+        #admin-panel {
+            display: none; position: fixed; inset: 0; background: white; z-index: 3000;
+            padding: 30px 20px; flex-direction: column; gap: 15px;
+        }
+        .admin-btn { background: var(--primary); color: white; padding: 15px; border-radius: 15px; text-align: center; font-weight: bold; text-decoration: none; border: 1px solid var(--gold); }
+
+        .bottom-nav {
+            position: fixed; bottom: 0; width: 100%; height: 75px; background: white;
+            display: flex; justify-content: space-around; align-items: center;
+            border-radius: 25px 25px 0 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); z-index: 1000;
+        }
+        .nav-link { text-align: center; text-decoration: none; color: var(--text-gray); font-weight: 800; font-size: 10px; flex: 1; }
+        .nav-link.active { color: var(--primary); }
+        .nav-link i { font-size: 24px; display: block; margin-bottom: 4px; }
+
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; z-index: 1500; backdrop-filter: blur(4px); }
+        .overlay.active { display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="overlay" id="overlay" onclick="closeAll()"></div>
+
+    <div id="admin-panel">
+        <h2 style="text-align: center; color: var(--primary);">Admin Gateway</h2>
+        <a href="rider-admin.html" class="admin-btn">Rider Admin</a>
+        <a href="house-admin.html" class="admin-btn">House Admin</a>
+        <a href="morning-admin.html" class="admin-btn">Morning Admin</a>
+        <a href="grocery-admin.html" class="admin-btn">Grocery Admin</a>
+        <a href="merchant-panel.html" class="admin-btn">Merchant Panel</a>
+        <button onclick="document.getElementById('admin-panel').style.display='none'" style="margin-top:20px; border:none; background:none; color:gray; font-weight:bold; width:100%;">BACK TO APP</button>
+    </div>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-user">
+            <div class="avatar-box"><img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="sidebar-avatar"></div>
+            <h3 id="user-name">Loading...</h3>
+            <p id="user-phone" style="font-size: 12px; color: var(--text-gray);">Please wait</p>
+        </div>
+        <div class="menu-list" style="flex-grow: 1;">
+            <a href="index.html" class="nav-item"><i class="fas fa-house"></i> Home Dashboard</a>
+            <a href="rules.html" class="nav-item"><i class="fas fa-file-contract"></i> Rules & Policies</a>
+            <a href="account.html" class="nav-item"><i class="fas fa-user-circle"></i> My Account</a>
+            <div class="nav-item" onclick="logoutUser()" style="color: red;"><i class="fas fa-sign-out-alt"></i> Logout</div>
+        </div>
+        <div class="nav-item" onclick="accessSecretGateway()" style="margin-top: auto; opacity: 0.5;">
+            <i class="fas fa-shield-alt"></i> System Management
+        </div>
+    </nav>
+
+    <header class="header-top">
+        <i class="fas fa-bars-staggered" onclick="toggleMenu()"></i>
+        <div class="logo-text">GMDS SUPER APP</div>
+        <img src="https://cdn-icons-png.flaticon.com/512/1144/1144760.png" id="header-avatar" style="width:35px; height:35px; border-radius:50%; border:2px solid var(--gold); background:white;" onclick="location.href='account.html'">
+    </header>
+
+    <div class="search-area">
+        <div class="search-box">
+            <i class="fas fa-search" style="color: var(--text-gray); margin-right: 10px;"></i>
+            <input type="text" placeholder="Search service or code..." onkeyup="checkSuperCommand(this)">
+        </div>
+    </div>
+
+    <div class="ad-slider">
+        <div class="ad-track" id="top-ads">
+            <img src="ad1.png" onerror="this.src='https://via.placeholder.com/400x140?text=Welcome+to+GMDS'">
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="delivery-box">
+            <div class="icon-card" onclick="location.href='food.html'"><img src="food.png" onerror="this.src='https://via.placeholder.com/55'"><b>Food</b></div>
+            <div class="icon-card" onclick="location.href='grocery.html'"><img src="grocery.png" onerror="this.src='https://via.placeholder.com/55'"><b>Grocery</b></div>
+            <div class="icon-card" onclick="location.href='morning.html'"><img src="morning.png" onerror="this.src='https://via.placeholder.com/55'"><b>Morning</b></div>
+        </div>
+
+        <div class="round-row">
+            <div class="round-item" onclick="location.href='digital.html'"><div class="circle"><img src="digital.png" onerror="this.src='https://via.placeholder.com/65'"></div><span>Digital</span></div>
+            <div class="round-item" onclick="location.href='medicine.html'"><div class="circle"><img src="medicine.png" onerror="this.src='https://via.placeholder.com/65'"></div><span>Medicine</span></div>
+            <div class="round-item" onclick="location.href='house.html'"><div class="circle"><img src="house.png" onerror="this.src='https://via.placeholder.com/65'"></div><span>House Help</span></div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-link active"><i class="fas fa-house-chimney"></i>HOME</a>
+        <a href="account.html" class="nav-link"><i class="fas fa-circle-user"></i>ACCOUNT</a>
+        <a href="cart.html" class="nav-link"><i class="fas fa-basket-shopping"></i>CART</a>
+    </nav>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <script>
+        // 1. Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB58FuXUOzOnTuGU-PRR-V5c6f1e3a5ce1da",
+            authDomain: "gmds-super-app.firebaseapp.com",
+            databaseURL: "https://gmds-super-app-default-rtdb.asia-southeast1.firebasedatabase.app/", 
+            projectId: "gmds-super-app",
+            storageBucket: "gmds-super-app.appspot.com",
+            messagingSenderId: "872768042776",
+            appId: "1:872768042776:web:5c64e3a6ce4da6229faa8"
+        };
+
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        // 2. Persistent Login Check
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("Logged in:", user.uid);
+                updateUI(user);
+                checkMaintenanceMode();
+            } else {
+                console.warn("No user! Redirecting...");
+                // window.location.href = "login.html"; // আন-কমেন্ট করুন যখন login.html রেডি হবে
+                document.getElementById('user-name').innerText = "Guest User";
+            }
+        });
+
+        // 3. UI Update Logic
+        function updateUI(user) {
+            document.getElementById('user-name').innerText = user.displayName || "GMDS User";
+            document.getElementById('user-phone').innerText = user.phoneNumber || user.email || "Verified Member";
+            if (user.photoURL) {
+                document.getElementById('sidebar-avatar').src = user.photoURL;
+                document.getElementById('header-avatar').src = user.photoURL;
+            }
+        }
+
+        // 4. Logout Function
+        function logoutUser() {
+            if(confirm("Logout from GMDS?")) {
+                auth.signOut().then(() => window.location.reload());
+            }
+        }
+
+        // 5. Maintenance Mode
+        function checkMaintenanceMode() {
+            db.ref('system_settings/maintenance').on('value', (snap) => {
+                if (snap.val() === true) {
+                    document.body.innerHTML = `<div style="text-align:center; padding:100px;"><h1>Server Maintenance</h1><p>Back soon!</p></div>`;
+                }
+            });
+        }
+
+        // Sidebar Control
+        function toggleMenu() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('overlay').classList.toggle('active'); }
+        function closeAll() { document.getElementById('sidebar').classList.remove('active'); document.getElementById('overlay').classList.remove('active'); }
+
+        // Security Commands
+        function checkSuperCommand(input) {
+            if(input.value.toLowerCase() === "004@gmds") {
+                let code = prompt("Admin PIN:");
+                if(code === "0044") window.location.href = "super-admin.html";
+            }
+        }
+
+        function accessSecretGateway() {
+            let pass = prompt("Password:");
+            if(pass === "gmds004@") {
+                document.getElementById('admin-panel').style.display = 'flex';
+                closeAll();
+            }
+        }
+    </script>
+</body>
+</html>
